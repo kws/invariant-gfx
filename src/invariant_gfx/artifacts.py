@@ -1,0 +1,99 @@
+"""Artifact types for invariant_gfx."""
+
+import hashlib
+from io import BytesIO
+from typing import BinaryIO
+
+from PIL import Image
+from invariant.protocol import ICacheable
+
+
+class ImageArtifact(ICacheable):
+    """Universal visual primitive passed between nodes.
+
+    Wraps a PIL.Image standardized to RGBA mode. Serialized as canonical PNG.
+    """
+
+    def __init__(self, image: Image.Image) -> None:
+        """Initialize with a PIL Image.
+
+        Args:
+            image: PIL Image to wrap. Will be normalized to RGBA mode.
+        """
+        # Normalize to RGBA mode
+        if image.mode != "RGBA":
+            image = image.convert("RGBA")
+        self.image = image
+
+    @property
+    def width(self) -> int:
+        """Image width in pixels."""
+        return self.image.width
+
+    @property
+    def height(self) -> int:
+        """Image height in pixels."""
+        return self.image.height
+
+    def get_stable_hash(self) -> str:
+        """SHA-256 hash of canonical PNG bytes."""
+        png_bytes = self._to_canonical_png()
+        return hashlib.sha256(png_bytes).hexdigest()
+
+    def to_stream(self, stream: BinaryIO) -> None:
+        """Serialize as canonical PNG."""
+        png_bytes = self._to_canonical_png()
+        stream.write(len(png_bytes).to_bytes(8, byteorder="big"))
+        stream.write(png_bytes)
+
+    @classmethod
+    def from_stream(cls, stream: BinaryIO) -> "ImageArtifact":
+        """Deserialize from canonical PNG."""
+        length = int.from_bytes(stream.read(8), byteorder="big")
+        png_bytes = stream.read(length)
+        image = Image.open(BytesIO(png_bytes))
+        return cls(image.convert("RGBA"))
+
+    def _to_canonical_png(self) -> bytes:
+        """Convert to canonical PNG (level 1, no metadata)."""
+        buffer = BytesIO()
+        self.image.save(buffer, format="PNG", compress_level=1, optimize=False)
+        return buffer.getvalue()
+
+
+class BlobArtifact(ICacheable):
+    """Container for raw binary resources (SVG, PNG, TTF, etc.).
+
+    Stores raw bytes with a content_type (MIME type) for identification.
+    """
+
+    def __init__(self, data: bytes, content_type: str) -> None:
+        """Initialize with binary data and content type.
+
+        Args:
+            data: Raw binary data.
+            content_type: MIME type (e.g., "image/svg+xml", "font/ttf").
+        """
+        self.data = data
+        self.content_type = content_type
+
+    def get_stable_hash(self) -> str:
+        """SHA-256 hash of raw bytes."""
+        return hashlib.sha256(self.data).hexdigest()
+
+    def to_stream(self, stream: BinaryIO) -> None:
+        """Serialize: [8 bytes: content_type_len][content_type][8 bytes: data_len][data]."""
+        content_type_bytes = self.content_type.encode("utf-8")
+        stream.write(len(content_type_bytes).to_bytes(8, byteorder="big"))
+        stream.write(content_type_bytes)
+        stream.write(len(self.data).to_bytes(8, byteorder="big"))
+        stream.write(self.data)
+
+    @classmethod
+    def from_stream(cls, stream: BinaryIO) -> "BlobArtifact":
+        """Deserialize from stream."""
+        content_type_len = int.from_bytes(stream.read(8), byteorder="big")
+        content_type = stream.read(content_type_len).decode("utf-8")
+        data_len = int.from_bytes(stream.read(8), byteorder="big")
+        data = stream.read(data_len)
+        return cls(data, content_type)

@@ -16,12 +16,12 @@ Tests the template + context pattern with cache reuse verification.
 
 def test_template_reuse_different_contexts():
     """Test template reuse with different contexts from architecture spec Section 10.4.
-    
+
     This test verifies:
     - Same graph template executed with two different contexts
     - Different outputs (different sizes, different badge colors)
     - Intermediate artifacts (like icon) are reused when parameters match
-    
+
     See docs/architecture.md Section 10.4 for the complete specification.
     """
     # TODO: Implement when ops are available
@@ -53,4 +53,3 @@ def test_template_reuse_cache_verification():
     # Verify that the second run uses cache for all nodes
     # This can be verified by checking store state or execution metrics
     pass
-

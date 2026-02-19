@@ -13,12 +13,12 @@ Tests gfx:layout in both row and column modes with differently-sized blocks.
 
 def test_content_flow_row_layout():
     """Test row layout pipeline from architecture spec Section 10.3.
-    
+
     This test verifies:
     - gfx:layout row mode with three differently-sized blocks
     - Output dimensions: width = 70 (20+5+20+5+20), height = 30 (tallest)
     - Pixel colors at expected positions confirm arrangement order
-    
+
     See docs/architecture.md Section 10.3 for the complete specification.
     """
     # TODO: Implement when gfx:create_solid and gfx:layout ops are available
@@ -40,12 +40,12 @@ def test_content_flow_row_layout():
 
 def test_content_flow_column_layout():
     """Test column layout pipeline from architecture spec Section 10.3.
-    
+
     This test verifies:
     - gfx:layout column mode with three differently-sized blocks
     - Output dimensions: width = 20 (widest), height = 70 (30+5+20+5+10)
     - Pixel colors at expected positions confirm arrangement order
-    
+
     See docs/architecture.md Section 10.3 for the complete specification.
     """
     # TODO: Implement when gfx:create_solid and gfx:layout ops are available
@@ -73,4 +73,3 @@ def test_content_flow_fan_out():
     # Verify both layouts produce correct outputs
     # This exercises the fan-out DAG pattern
     pass
-
