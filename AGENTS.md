@@ -25,7 +25,7 @@ invariant_gfx is a **child project** of Invariant. The relationship is:
 - Invariant knows about `ICacheable`, `Node`, `Executor`, `OpRegistry`, `ArtifactStore`
 - Invariant does NOT know about images, fonts, icons, or rendering
 - invariant_gfx implements graphics Ops that return `ICacheable` artifacts
-- invariant_gfx may extend Invariant's capabilities (e.g., Pipeline wrapper class) but keeps graphics concerns isolated
+- invariant_gfx uses Invariant's Executor and ChainStore directly—no wrapper needed
 
 ## **Critical Constraints (MUST FOLLOW)**
 
@@ -54,7 +54,7 @@ All constraints from Invariant apply, plus graphics-specific rules:
 
 ### **5. Explicit Data Flow (No Global Context)**
 - There is no "Global Context" or "Environment Variables"
-- If a node needs data (like a URL or temperature value), that data must be the output of an upstream **Identity Node**
+- If a node needs data (like a URL or temperature value), that data is either the output of an upstream node in the graph, or an external dependency provided via `context` when executing the graph
 - The graph is hermetic—you can visualize exactly where every piece of data comes from
 
 ## **Core Terminology**
@@ -63,8 +63,7 @@ All constraints from Invariant apply, plus graphics-specific rules:
 | :---- | :---- | :---- |
 | **ImageArtifact** | Universal visual primitive (PIL.Image in RGBA) | Implements ICacheable, exposes .width/.height |
 | **BlobArtifact** | Container for raw binary resources (SVG, TTF, PNG bytes) | Used for fonts, icons, downloaded assets |
-| **LayerSpec** | Specification for a layer in composite op | Contains ref, id, anchor, mode, opacity |
-| **anchor()** | DSL helper function for positioning layers | Returns AnchorSpec for composite op |
+| **Anchor Functions** | Builder functions for layer positioning in composite op | `absolute(x, y)` for pixel coordinates, `relative(parent, align, x, y)` for parent-relative positioning |
 | **Op Groups** | Categories of operations (Sources, Transformers, Compositors, Casting) | See architecture.md for full list |
 
 ## **The Op Standard Library**
@@ -72,20 +71,21 @@ All constraints from Invariant apply, plus graphics-specific rules:
 invariant_gfx provides a standard library of graphics operations organized into groups:
 
 ### **Group A: Sources (Data Ingestion)**
-- `resolve_resource`: Resolves bundled resources (icons, images) via JustMyResource
-- `create_solid`: Generates solid color canvas
+- `gfx:resolve_resource`: Resolves bundled resources (icons, images) via JustMyResource
+- `gfx:create_solid`: Generates solid color canvas
+- `gfx:resolve_font`: Resolves font family names to font file bytes via JustMyType
 
 ### **Group B: Transformers (Rendering)**
-- `render_svg`: Converts SVG blobs into raster artifacts using cairosvg
-- `render_text`: Creates tight-fitting "Text Pill" artifacts (uses JustMyType for font resolution)
-- `resize`: Scales an ImageArtifact to target dimensions
+- `gfx:render_svg`: Converts SVG blobs into raster artifacts using cairosvg
+- `gfx:render_text`: Creates tight-fitting "Text Pill" artifacts (uses JustMyType for font resolution)
+- `gfx:resize`: Scales an ImageArtifact to target dimensions
 
 ### **Group C: Composition (Combiners)**
-- `composite`: Fixed-size composition engine with anchor-based positioning
-- `layout`: Content-sized arrangement engine (row/column flow)
+- `gfx:composite`: Fixed-size composition engine with anchor-based positioning. Uses function-based DSL (`absolute()`, `relative()`) with parent references for layer positioning. Layers specified as dict keyed by dep ID.
+- `gfx:layout`: Content-sized arrangement engine (row/column flow)
 
 ### **Group D: Type Conversion (Casting)**
-- `blob_to_image`: Parses raw binary data (PNG, JPEG, WEBP) into ImageArtifact
+- `gfx:blob_to_image`: Parses raw binary data (PNG, JPEG, WEBP) into ImageArtifact
 
 See [docs/architecture.md](./docs/architecture.md) for detailed specifications of each op.
 
@@ -95,11 +95,10 @@ After reviewing the actual Invariant codebase, the status is:
 
 | Feature | Status | Notes |
 | :---- | :---- | :---- |
-| **Expression Evaluation** | **Not needed for v1** | Executor populates manifest with upstream artifacts keyed by dep node ID. Ops access results via `manifest["node_id"]`. |
-| **Context Injection** | **Handled by Pipeline wrapper** | Pipeline class (in invariant_gfx) accepts context dict and creates identity nodes automatically. |
-| **Pipeline Class** | **To be implemented in invariant_gfx** | Wraps Executor with context support and dual-cache (MemoryStore + DiskStore). |
+| **Expression Evaluation** | **Implemented upstream** | CEL expressions via `${...}` syntax in `invariant/expressions.py`. Expressions are evaluated during Phase 1 (Context Resolution) when building manifests. |
+| **Context Injection** | **Implemented upstream** | `Executor.execute(graph, context=...)` natively supports external dependencies. Dependencies not in the graph are resolved from the context dict. |
+| **ChainStore** | **Implemented upstream** | `invariant/store/chain.py` provides MemoryStore (L1) + DiskStore (L2) two-tier cache with automatic promotion from L2 to L1 on cache hits. |
 | **List/Dict Cacheable Types** | **Partial** | `hash_value()` hashes lists/dicts recursively, but standalone `List`/`Dict` ICacheable types don't exist. **V1 workaround:** Pass layer specs as plain Python dicts/lists in params (they're only used in manifests, not stored as artifacts). |
-| **Op Namespace Enforcement** | **Not needed for v1** | Convention-based namespacing is sufficient (core ops use bare names, extensions use `namespace:op_name`).
 
 ## **External Dependencies**
 
@@ -121,10 +120,10 @@ invariant_gfx uses Invariant's two-phase execution model:
 4. Output: **Manifest** → hash becomes **Digest** (cache key)
 
 ### **Phase 2: Action Execution (Manifest → Artifact)**
-1. **Cache Lookup:** Check `ArtifactStore.exists(Digest)`
+1. **Cache Lookup:** Check `ArtifactStore.exists(op_name, Digest)`
    - If True: Return stored Artifact, **skip Op execution**
 2. **Execution:** If False, invoke `OpRegistry.get(op_name)(manifest)`
-3. **Persistence:** Serialize and save Artifact to `ArtifactStore` under Digest
+3. **Persistence:** Serialize and save Artifact to `ArtifactStore` under (op_name, Digest)
 
 ## **Implementation Status**
 
@@ -132,19 +131,17 @@ invariant_gfx uses Invariant's two-phase execution model:
 - Op standard library specification
 - Artifact types (ImageArtifact, BlobArtifact)
 - Composite and layout algorithms
-- anchor() DSL helper
 
 **Not Yet Implemented:**
 - Actual Op implementations
 - ImageArtifact and BlobArtifact classes
-- Pipeline wrapper class
 - Integration with JustMyType/JustMyResource
 
 ## **For More Information**
 
 See [docs/architecture.md](./docs/architecture.md) for:
 - Detailed Op specifications
-- LayerSpec and anchor() documentation
+- LayerSpec documentation
 - Complete pipeline examples
 - Design philosophy and influences
 
