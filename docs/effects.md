@@ -1,6 +1,6 @@
 # **Effects: Filter Primitives and Pre-Bundled Subgraphs**
 
-Visual effects (drop shadows, strokes, glows) are a core use case for Invariant GFX. Rather than building named effects as special-cased ops, the system decomposes effects into **orthogonal filter primitives** and then composes them as **subgraphs** — small DAG fragments that can be merged into any parent graph. Subgraphs are defined in [subgraphs.md](subgraphs.md).
+Visual effects (drop shadows, strokes, glows) are a core use case for Invariant GFX. Rather than building named effects as special-cased ops, the system decomposes effects into **orthogonal filter primitives** and then composes them as **subgraphs** — small DAG fragments that can be merged into any parent graph. Subgraphs are defined in [Subgraphs (Invariant)](https://github.com/kws/invariant/blob/main/docs/subgraphs.md).
 
 This approach keeps the op surface area small, every intermediate result cacheable, and effects fully composable with each other.
 
@@ -175,9 +175,9 @@ Multiplies the alpha channel of an image by a factor.
 
 ## **3. Pre-Bundled Subgraphs (Effect Recipes)**
 
-A **pre-bundled subgraph** for effects (an **effect recipe**) is a Python function that returns a **SubGraphNode**. The parent graph sees a single vertex with dependencies and one output artifact; the fact that the subgraph runs internal ops is invisible. For the SubGraphNode model, execution semantics, shared caching, and upstream (Invariant) requirements, see [subgraphs.md](subgraphs.md).
+A **pre-bundled subgraph** for effects (an **effect recipe**) is a Python function that returns a **SubGraphNode**. The parent graph sees a single vertex with dependencies and one output artifact; the fact that the subgraph runs internal ops is invisible. For the SubGraphNode model, execution semantics, shared caching, and upstream (Invariant) requirements, see [Subgraphs (Invariant)](https://github.com/kws/invariant/blob/main/docs/subgraphs.md).
 
-**Example:** an effect recipe is assigned to a node ID and referenced like any other node. (SubGraphNode semantics are in [subgraphs.md](subgraphs.md).)
+**Example:** an effect recipe is assigned to a node ID and referenced like any other node. (SubGraphNode semantics are in [Subgraphs (Invariant)](https://github.com/kws/invariant/blob/main/docs/subgraphs.md).)
 
 ```python
 graph = {
@@ -235,7 +235,7 @@ The recipe builds an internal graph whose only external dependency is the source
 ```python
 from decimal import Decimal
 from invariant import Node, ref
-from invariant import SubGraphNode  # Upstream: see subgraphs.md
+from invariant import SubGraphNode  # See Invariant docs: subgraphs.md
 
 def drop_shadow(
     source: str,
@@ -658,7 +658,7 @@ The filter primitives complement — not replace — the existing standard libra
 ## **10. Related Documents**
 
 * [architecture.md](architecture.md) — Op standard library, artifact types, pipeline examples
-* [subgraphs.md](subgraphs.md) — SubGraphNode model and execution semantics
+* [Subgraphs (Invariant)](https://github.com/kws/invariant/blob/main/docs/subgraphs.md) — SubGraphNode model and execution semantics
 * [composite.md](composite.md) — `gfx:composite` specification (blend modes, anchor functions)
 * [layout.md](layout.md) — `gfx:layout` specification
 * [status.md](status.md) — Implementation tracking
