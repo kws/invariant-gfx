@@ -201,7 +201,7 @@ graph = {
 
 ### **Drop Shadow**
 
-The canonical shadow effect: extract the source silhouette, optionally spread it, blur, colorize, offset, and composite behind the source.
+The canonical shadow effect: extract the source silhouette, optionally spread it, blur, colorize, offset, and composite behind the source. Padding the source canvas (e.g. with `gfx:pad`) so the shadow is not clipped is the **caller's responsibility**; see §6 (Bounding Box Considerations).
 
 **DAG Structure:**
 

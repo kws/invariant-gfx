@@ -47,6 +47,12 @@ This document tracks the implementation status of all components specified in [a
 |:--|:--|:--|
 | **gfx:blob_to_image** | ✅ **Implemented** | Parse raw binary data (PNG, JPEG, WEBP) into ImageArtifact. Automatically converts to RGBA mode. Fully tested. |
 
+## Effect Recipes (Subgraphs)
+
+| Recipe | Status | Notes |
+|:--|:--|:--|
+| **drop_shadow** | ✅ **Implemented** | SubGraphNode: extract_alpha → optional dilate → gaussian_blur → colorize → optional translate. See [effects.md](./effects.md) §4. Padding is caller's responsibility. |
+
 ## Deferred Ops (Post-V1)
 
 | Operation | Status | Notes |
@@ -78,8 +84,9 @@ This document tracks the implementation status of all components specified in [a
 | **test_e2e_layered_badge.py** | ✅ **Implemented** | 2 tests: Full Use Case 1 pipeline, cache reuse verification. **All passing.** |
 | **test_e2e_content_flow.py** | ✅ **Implemented** | 3 tests: Use Case 2 E2E test (row/column layout, fan-out pattern). **All passing.** |
 | **test_e2e_template_reuse.py** | ⏳ **Placeholder** | Use Case 3 E2E test (requires context injection). Test structure exists but not executable. |
+| **test_recipe_drop_shadow.py** | ✅ **Implemented** | 4 tests: happy path, context wiring, radius (dilate), zero offset (no translate). |
 
-**Total Test Count:** 94 tests, all passing ✅
+**Total Test Count:** 98 tests, all passing ✅
 
 ## Iteration 1 Summary
 
