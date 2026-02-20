@@ -8,25 +8,29 @@ authors = [
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
+dependencies = [
+    "invariant-core",
+    "justmytype>=0.3.0,<0.4.0",
+    "justmyresource[icons]>=1.1.1,<2.0.0",
+    "Pillow>=12.1.1,<13.0.0",
+    "cairosvg>=2.8.2,<3.0.0",
+]
 
-[tool.poetry]
-packages = [{include = "invariant_gfx", from = "src"}]
+[tool.uv.sources]
+invariant-core = {path = "/Users/kws/work/invariant", editable = true}
 
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.15.1"
-pytest = "^9.0.2"
-pre-commit = "^3.8.0"
-justmytype = "^0.3.0"
-justmyresource = {extras = ["icon"], version = "^1.1.1"}
+[tool.hatch.build.targets.wheel]
+packages = ["src/invariant_gfx"]
 
-
-[tool.poetry.dependencies]
-invariant = {path = "/Users/kws/work/invariant", develop = true}
-justmytype = ">=0.3.0,<0.4.0"
-justmyresource = {extras = ["icons"], version = ">=1.1.1,<2.0.0"}
-Pillow = ">=12.1.1,<13.0.0"
-cairosvg = ">=2.8.2,<3.0.0"
+[dependency-groups]
+dev = [
+    "ruff>=0.15.1",
+    "pytest>=9.0.2",
+    "pre-commit>=3.8.0",
+    "justmytype>=0.3.0",
+    "justmyresource[icon]>=1.1.1",
+]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
