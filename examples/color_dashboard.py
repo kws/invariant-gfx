@@ -5,8 +5,8 @@ This example demonstrates a multi-cell dashboard with labeled colored blocks.
 Exercises layout nesting and text rendering.
 
 Usage:
-    poetry run python examples/color_dashboard.py
-    poetry run python examples/color_dashboard.py --items "CPU:75:red,MEM:42:green,DISK:91:blue" --cell-size 80 --output output/dashboard.png
+    uv run python examples/color_dashboard.py
+    uv run python examples/color_dashboard.py --items "CPU:75:red,MEM:42:green,DISK:91:blue" --cell-size 80 --output output/dashboard.png
 """
 
 import argparse

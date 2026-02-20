@@ -14,9 +14,9 @@ matches the pixel dimensions 1:1, rounded corners remain undistorted at any
 aspect ratio.
 
 Usage:
-    poetry run python examples/text_badge.py
-    poetry run python examples/text_badge.py --text "Hello"
-    poetry run python examples/text_badge.py --text "42" --font-size 24 --bg-color 200,0,0
+    uv run python examples/text_badge.py
+    uv run python examples/text_badge.py --text "Hello"
+    uv run python examples/text_badge.py --text "42" --font-size 24 --bg-color 200,0,0
 """
 
 import argparse

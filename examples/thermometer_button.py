@@ -10,8 +10,8 @@ This example demonstrates the full op chain from the architecture specification:
 - gfx:composite (final composition)
 
 Usage:
-    poetry run python examples/thermometer_button.py
-    poetry run python examples/thermometer_button.py --size 72 --icon lucide:thermometer --temperature "22.5C" --font Geneva --output output/thermo.png
+    uv run python examples/thermometer_button.py
+    uv run python examples/thermometer_button.py --size 72 --icon lucide:thermometer --temperature "22.5C" --font Geneva --output output/thermo.png
 """
 
 import argparse

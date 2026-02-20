@@ -7,7 +7,7 @@ This example demonstrates proportional scaling with Decimal arithmetic:
 - Renders at different sizes (72x72 and 144x144)
 
 Usage:
-    poetry run python examples/quick_start.py
+    uv run python examples/quick_start.py
 """
 
 import argparse

@@ -49,7 +49,7 @@ git clone <repository-url>
 cd invariant-gfx
 
 # Install dependencies
-poetry install
+uv sync
 ```
 
 **Note**: This project depends on a local development version of Invariant. The dependency is configured in `pyproject.toml` as a file path reference.
@@ -160,13 +160,13 @@ For AI agents working with this codebase, see [AGENTS.md](AGENTS.md).
 
 ```bash
 # Run tests
-poetry run pytest
+uv run pytest
 
 # Run linting
-poetry run ruff check src/ tests/
+uv run ruff check src/ tests/
 
 # Format code
-poetry run ruff format src/ tests/
+uv run ruff format src/ tests/
 ```
 
 ## License
