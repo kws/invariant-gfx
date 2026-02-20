@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-"""Example: Text Badge Pipeline — Dynamic SVG Resizing
+"""Example: Text Badge Pipeline — In-Flight SVG Modification
 
-This example demonstrates that renderers in invariant_gfx can react dynamically
-to upstream artifact dimensions. A single static SVG (with a fixed viewBox) is
-stretched at render time to fit text of any size — the pipeline measures the text
-first, then tells cairosvg to rasterize the SVG at exactly (text_width + padding,
-text_height + padding).
+This example demonstrates that invariant_gfx can modify SVG content "in-flight"
+using CEL expression interpolation. The SVG badge template contains ${...}
+expressions that reference upstream artifact dimensions, which are resolved during
+Phase 1 (Context Resolution) before the SVG is rendered.
 
-The key insight: the SVG badge definition never changes, but its rendered pixel
-size is driven by CEL expressions that reference the text artifact's dimensions.
-Because the SVG uses preserveAspectRatio="none", cairosvg stretches the entire
-coordinate system non-uniformly, so the rounded corners will appear more
-elongated at extreme aspect ratios. This is expected and intentional — it proves
-the SVG viewport genuinely stretches to whatever dimensions the pipeline demands,
-rather than being rendered at a fixed size and cropped.
+The key insight: the SVG badge is a template string with embedded expressions
+like ${text.width + 24} and ${text.height + 16}. The pipeline measures the text
+first, then resolves these expressions to produce a concrete SVG with viewBox
+and dimensions that perfectly fit the content. Because the SVG coordinate system
+matches the pixel dimensions 1:1, rounded corners remain undistorted at any
+aspect ratio.
 
 Usage:
     poetry run python examples/text_badge.py
@@ -57,28 +55,35 @@ def parse_rgba(color_str: str) -> tuple[int, int, int, int]:
         )
 
 
-def create_badge_svg(
+def create_badge_svg_template(
     corner_radius: int = 8,
     fill_color: tuple[int, int, int, int] = (50, 50, 50, 255),
     border_color: tuple[int, int, int, int] | None = None,
     border_width: int = 1,
+    padding_x: int = 12,
+    padding_y: int = 8,
 ) -> str:
-    """Generate SVG for a rounded rectangle badge.
+    """Generate SVG template for a rounded rectangle badge with dynamic dimensions.
 
-    The SVG uses a fixed viewBox (0 0 100 40) with preserveAspectRatio="none"
-    so that cairosvg stretches the entire coordinate system to the requested
-    pixel dimensions. This means the rounded corners will distort at aspect
-    ratios far from 100:40 — that's by design, demonstrating true dynamic
-    SVG resizing rather than uniform scaling.
+    The SVG template contains ${...} CEL expressions that reference upstream
+    artifact dimensions (e.g., ${text.width + 24}). These expressions are
+    resolved during Phase 1 (Context Resolution) before the SVG is rendered,
+    producing a concrete SVG with viewBox and dimensions that perfectly fit
+    the content.
+
+    Because the SVG coordinate system matches pixel dimensions 1:1 (no stretching),
+    rounded corners remain undistorted at any aspect ratio.
 
     Args:
-        corner_radius: Corner radius in viewBox units
+        corner_radius: Corner radius in pixels
         fill_color: Background fill color (RGBA)
         border_color: Optional border color (RGBA), defaults to darker fill
-        border_width: Border width in viewBox units
+        border_width: Border width in pixels
+        padding_x: Horizontal padding (used in expressions)
+        padding_y: Vertical padding (used in expressions)
 
     Returns:
-        SVG XML string.
+        SVG XML template string with ${...} expressions.
     """
     if border_color is None:
         # Darker version of fill color
@@ -95,12 +100,18 @@ def create_badge_svg(
     fill_opacity = fill_color[3] / 255.0
     border_opacity = border_color[3] / 255.0
 
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" preserveAspectRatio="none">
+    # Calculate total dimensions with padding
+    padding_x_total = padding_x * 2
+    padding_y_total = padding_y * 2
+
+    # SVG template with ${...} expressions that will be resolved in-flight
+    # The expressions reference the "text" dependency's width/height properties
+    svg_template = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${{text.width + {padding_x_total}}} ${{text.height + {padding_y_total}}}">
   <rect
     x="{border_width}"
     y="{border_width}"
-    width="{100 - 2 * border_width}"
-    height="{40 - 2 * border_width}"
+    width="${{text.width + {padding_x_total - 2 * border_width}}}"
+    height="${{text.height + {padding_y_total - 2 * border_width}}}"
     rx="{corner_radius}"
     ry="{corner_radius}"
     fill="{fill_hex}"
@@ -110,7 +121,7 @@ def create_badge_svg(
     stroke-width="{border_width}"
   />
 </svg>"""
-    return svg
+    return svg_template
 
 
 def create_badge_graph(
@@ -138,12 +149,14 @@ def create_badge_graph(
     Returns:
         Graph dictionary.
     """
-    # Generate static SVG badge (will be stretched to fit text)
-    badge_svg = create_badge_svg(
+    # Generate SVG template with ${...} expressions (resolved in-flight)
+    badge_svg_template = create_badge_svg_template(
         corner_radius=8,
         fill_color=bg_color,
         border_color=border_color,
         border_width=1,
+        padding_x=padding_x,
+        padding_y=padding_y,
     )
 
     graph = {
@@ -158,11 +171,11 @@ def create_badge_graph(
             },
             deps=[],
         ),
-        # Render badge SVG at dimensions derived from text
+        # Render badge SVG: template expressions resolved before rendering
         "badge": Node(
             op_name="gfx:render_svg",
             params={
-                "svg_content": badge_svg,
+                "svg_content": badge_svg_template,  # Contains ${...} expressions
                 "width": f"${{text.width + {padding_x * 2}}}",  # Text width + padding
                 "height": f"${{text.height + {padding_y * 2}}}",  # Text height + padding
             },
