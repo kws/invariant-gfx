@@ -1,1 +1,1 @@
-"""Tests for invariant_gfx."""
+"""Tests for Invariant GFX."""

@@ -81,7 +81,7 @@ def create_graph(size: int) -> dict:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Generate a simple text-on-background image using invariant_gfx pipeline"
+        description="Generate a simple text-on-background image using Invariant GFX pipeline"
     )
     parser.add_argument(
         "--size",

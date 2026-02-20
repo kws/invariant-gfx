@@ -1,7 +1,7 @@
 """Unit tests for example scripts.
 
 These tests ensure that the example scripts continue to work correctly
-when code changes are made to the invariant_gfx package. Tests execute the
+when code changes are made to the invariant-gfx package. Tests execute the
 scripts as external Python processes using subprocess for accurate testing.
 """
 

@@ -1,4 +1,4 @@
-"""Integration tests for invariant_gfx pipeline."""
+"""Integration tests for Invariant GFX pipeline."""
 
 from invariant import Executor, Node, ref
 from invariant.registry import OpRegistry

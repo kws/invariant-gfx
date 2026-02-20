@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Example: Text Badge Pipeline — In-Flight SVG Modification
 
-This example demonstrates that invariant_gfx can modify SVG content "in-flight"
+This example demonstrates that Invariant GFX can modify SVG content "in-flight"
 using CEL expression interpolation. The SVG badge template contains ${...}
 expressions that reference upstream artifact dimensions, which are resolved during
 Phase 1 (Context Resolution) before the SVG is rendered.
@@ -207,7 +207,7 @@ def create_badge_graph(
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Generate a text badge image using invariant_gfx pipeline"
+        description="Generate a text badge image using Invariant GFX pipeline"
     )
     parser.add_argument(
         "--text",

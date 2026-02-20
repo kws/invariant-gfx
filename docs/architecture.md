@@ -1,8 +1,8 @@
-# **invariant\_gfx: The Functional Graphics Pipeline**
+# **Invariant GFX: The Functional Graphics Pipeline**
 
-**invariant\_gfx** is a deterministic, DAG-based graphics engine built on **Invariant**. It allows developers to build complex visual assets (like Stream Deck buttons, dynamic badges, or data visualizations) by plugging together reusable "pipeline parts."
+**Invariant GFX** is a deterministic, DAG-based graphics engine built on **Invariant**. It allows developers to build complex visual assets (like Stream Deck buttons, dynamic badges, or data visualizations) by plugging together reusable "pipeline parts."
 
-Unlike traditional imperative rendering (where you draw lines on a mutable canvas), invariant\_gfx is **functional**: every layer, mask, or composition is an immutable **Artifact** produced by a pure function.
+Unlike traditional imperative rendering (where you draw lines on a mutable canvas), Invariant GFX is **functional**: every layer, mask, or composition is an immutable **Artifact** produced by a pure function.
 
 ## **1\. Core Philosophy**
 
@@ -126,7 +126,7 @@ class BlobArtifact(ICacheable):
 
 ## **3\. Operation Registry & Extensibility**
 
-invariant\_gfx relies on the core **Invariant OpRegistry** to map string identifiers to executable Python logic. This decoupling allows the pipeline to be purely declarative while supporting infinite extensibility.
+Invariant GFX relies on the core **Invariant OpRegistry** to map string identifiers to executable Python logic. This decoupling allows the pipeline to be purely declarative while supporting infinite extensibility.
 
 ### **The Registry Pattern**
 
@@ -136,7 +136,7 @@ The pipeline does not contain code; it contains **references**. At runtime, the 
 registry \= OpRegistry()
 
 \# 1\. Register Standard Library (Core Ops)  
-invariant\_gfx.register\_core\_ops(registry)  # Registers as gfx:resolve_resource, gfx:render_text, etc.
+invariant_gfx.register_core_ops(registry)  # Registers as gfx:resolve_resource, gfx:render_text, etc.
 
 \# 2\. Register Custom/Application Ops  
 registry.register("myapp:custom\_filter", my\_custom\_filter\_op)
@@ -303,7 +303,7 @@ The following ops are planned but not required for v1:
 
 ## **5\. Missing Upstream Features (Gaps in Invariant)**
 
-After reviewing the actual Invariant codebase, here is the accurate status of features needed by invariant_gfx:
+After reviewing the actual Invariant codebase, here is the accurate status of features needed by Invariant GFX:
 
 | Feature | Status |
 | :---- | :---- |
@@ -336,11 +336,11 @@ When designing ops that need both artifact references and configuration, nest th
 
 ## **6\. Dependency Integration**
 
-invariant_gfx integrates with two key dependencies for resource discovery:
+Invariant GFX integrates with two key dependencies for resource discovery:
 
 ### **Font Resolution (JustMyType)**
 
-invariant_gfx supports two font resolution paths:
+Invariant GFX supports two font resolution paths:
 
 **1. Implicit Resolution (String-based):**
 The `gfx:render_text` op can accept a font family name as a string (e.g., `"Inter"`, `"Roboto"`). When provided as a string:
@@ -385,7 +385,7 @@ The `gfx:resolve_resource` op wraps JustMyResource's `ResourceRegistry` to fetch
 
 ## **7\. Using Invariant's Executor and ChainStore**
 
-invariant_gfx uses Invariant's `Executor` and `ChainStore` directly—no wrapper class is needed.
+Invariant GFX uses Invariant's `Executor` and `ChainStore` directly—no wrapper class is needed.
 
 ### **Executor Setup**
 
@@ -595,11 +595,11 @@ This example demonstrates the **layout** and **composite** ops working together:
 
 ## **10\. Reference Test Pipelines**
 
-To validate invariant_gfx's core capabilities—composition, layout, anchoring, caching, and context injection—we need reference test cases that exercise complex DAG structures without requiring external font or icon dependencies. **Pure geometric compositions** serve as ideal reference implementations.
+To validate Invariant GFX's core capabilities—composition, layout, anchoring, caching, and context injection—we need reference test cases that exercise complex DAG structures without requiring external font or icon dependencies. **Pure geometric compositions** serve as ideal reference implementations.
 
 ### **10.1 Why Geometric Compositions**
 
-Geometric compositions (colored rectangles, solid canvases) are well-suited for testing invariant_gfx because:
+Geometric compositions (colored rectangles, solid canvases) are well-suited for testing Invariant GFX because:
 
 * **No external dependencies** — uses only `gfx:create_solid`, `gfx:resize`, `gfx:composite`, and `gfx:layout` (no fonts, icons, or network resources).
 * **Pixel-verifiable** — output dimensions and pixel colors at known coordinates can be asserted programmatically.
@@ -988,4 +988,4 @@ assert results3["final"].height == 72
 | **Cache reuse** | — | — | Yes |
 | **Pixel-level verification** | Yes | Yes | Yes |
 
-These three reference pipelines collectively exercise all core graphics operations and DAG patterns in invariant_gfx, providing a comprehensive test suite that validates the system's correctness, caching behavior, and template reuse capabilities.
+These three reference pipelines collectively exercise all core graphics operations and DAG patterns in Invariant GFX, providing a comprehensive test suite that validates the system's correctness, caching behavior, and template reuse capabilities.

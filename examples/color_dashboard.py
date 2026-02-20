@@ -239,7 +239,7 @@ def create_dashboard_graph(items: list[tuple[str, int, str]], cell_size: int) ->
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Generate a color dashboard image using invariant_gfx pipeline"
+        description="Generate a color dashboard image using Invariant GFX pipeline"
     )
     parser.add_argument(
         "--items",

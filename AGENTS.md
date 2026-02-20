@@ -1,12 +1,12 @@
 # **AGENTS.md: Essential Information for AI Agents**
 
-This document provides must-know information about the invariant_gfx system. For comprehensive details, see [docs/architecture.md](./docs/architecture.md).
+This document provides must-know information about the Invariant GFX system. For comprehensive details, see [docs/architecture.md](./docs/architecture.md).
 
-## **What is invariant_gfx?**
+## **What is Invariant GFX?**
 
-invariant_gfx is a deterministic, DAG-based graphics engine built on **Invariant**. It allows developers to build complex visual assets (like Stream Deck buttons, dynamic badges, or data visualizations) by plugging together reusable "pipeline parts."
+Invariant GFX is a deterministic, DAG-based graphics engine built on **Invariant**. It allows developers to build complex visual assets (like Stream Deck buttons, dynamic badges, or data visualizations) by plugging together reusable "pipeline parts."
 
-Unlike traditional imperative rendering (where you draw lines on a mutable canvas), invariant_gfx is **functional**: every layer, mask, or composition is an immutable **Artifact** produced by a pure function.
+Unlike traditional imperative rendering (where you draw lines on a mutable canvas), Invariant GFX is **functional**: every layer, mask, or composition is an immutable **Artifact** produced by a pure function.
 
 **Core Value:**
 - **Aggressive Caching:** Identical visual operations (rendering the same text, compositing the same layers) execute only once
@@ -16,16 +16,16 @@ Unlike traditional imperative rendering (where you draw lines on a mutable canva
 
 ## **Relationship to Invariant (Parent-Child)**
 
-invariant_gfx is a **child project** of Invariant. The relationship is:
+Invariant GFX is a **child project** of Invariant. The relationship is:
 
 - **Invariant (Parent):** Provides the DAG execution engine, caching infrastructure, and core protocols. Invariant has **NO image awareness**—it is domain-agnostic.
-- **invariant_gfx (Child):** Provides graphics-specific Ops (render_text, composite, render_svg) and Artifacts (ImageArtifact, BlobArtifact). All image/Pillow concerns live here.
+- **Invariant GFX (Child):** Provides graphics-specific Ops (render_text, composite, render_svg) and Artifacts (ImageArtifact, BlobArtifact). All image/Pillow concerns live here.
 
 **Clear Boundary:**
 - Invariant knows about `ICacheable`, `Node`, `Executor`, `OpRegistry`, `ArtifactStore`
 - Invariant does NOT know about images, fonts, icons, or rendering
-- invariant_gfx implements graphics Ops that return `ICacheable` artifacts
-- invariant_gfx uses Invariant's Executor and ChainStore directly—no wrapper needed
+- Invariant GFX implements graphics Ops that return `ICacheable` artifacts
+- Invariant GFX uses Invariant's Executor and ChainStore directly—no wrapper needed
 
 ## **Critical Constraints (MUST FOLLOW)**
 
@@ -68,7 +68,7 @@ All constraints from Invariant apply, plus graphics-specific rules:
 
 ## **The Op Standard Library**
 
-invariant_gfx provides a standard library of graphics operations organized into groups:
+Invariant GFX provides a standard library of graphics operations organized into groups:
 
 ### **Group A: Sources (Data Ingestion)**
 - `gfx:resolve_resource`: Resolves bundled resources (icons, images) via JustMyResource
@@ -102,7 +102,7 @@ After reviewing the actual Invariant codebase, the status is:
 
 ## **External Dependencies**
 
-invariant_gfx depends on:
+Invariant GFX depends on:
 
 - **Invariant:** The parent DAG execution engine
 - **Pillow (PIL):** Image manipulation and rendering
@@ -111,7 +111,7 @@ invariant_gfx depends on:
 
 ## **Execution Model: Inherited from Invariant**
 
-invariant_gfx uses Invariant's two-phase execution model:
+Invariant GFX uses Invariant's two-phase execution model:
 
 ### **Phase 1: Context Resolution (Graph → Manifest)**
 1. Traverse DAG, resolve inputs for each Node

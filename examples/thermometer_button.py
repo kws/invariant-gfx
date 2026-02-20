@@ -116,7 +116,7 @@ def create_thermometer_graph(
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Generate a thermometer button image using invariant_gfx pipeline"
+        description="Generate a thermometer button image using Invariant GFX pipeline"
     )
     parser.add_argument(
         "--size",

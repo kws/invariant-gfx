@@ -1,4 +1,4 @@
-"""Artifact types for invariant_gfx."""
+"""Artifact types for Invariant GFX."""
 
 import hashlib
 from io import BytesIO

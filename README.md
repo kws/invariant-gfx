@@ -1,6 +1,6 @@
-# invariant_gfx
+# Invariant GFX
 
-A deterministic, functional graphics pipeline built on **Invariant**. invariant_gfx allows developers to build complex visual assets (icons, badges, dynamic UI components, Stream Deck buttons, data visualizations) by plugging together reusable "pipeline parts" in a DAG-based system.
+A deterministic, functional graphics pipeline built on **Invariant**. Invariant GFX allows developers to build complex visual assets (icons, badges, dynamic UI components, Stream Deck buttons, data visualizations) by plugging together reusable "pipeline parts" in a DAG-based system.
 
 > **Note**: This project builds on [Invariant](https://github.com/kws/invariant/blob/main/README.md), a deterministic execution engine for DAGs. For information about Invariant's core concepts (DAG execution, caching, execution model, parameter markers, etc.), see the [upstream README](https://github.com/kws/invariant/blob/main/README.md) and [Invariant documentation](https://github.com/kws/invariant).
 
@@ -12,16 +12,16 @@ A deterministic, functional graphics pipeline built on **Invariant**. invariant_
 
 ## Relationship to Invariant
 
-invariant_gfx is a **child project** of Invariant:
+Invariant GFX is a **child project** of Invariant:
 
 - **Invariant (Parent)**: Provides the DAG execution engine, caching infrastructure, and core protocols. Invariant has **NO image awareness**—it is domain-agnostic.
-- **invariant_gfx (Child)**: Provides graphics-specific Ops (`gfx:render_text`, `gfx:composite`, `gfx:render_svg`, etc.) and Artifacts (`ImageArtifact`, `BlobArtifact`). All image/Pillow concerns live here.
+- **Invariant GFX (Child)**: Provides graphics-specific Ops (`gfx:render_text`, `gfx:composite`, `gfx:render_svg`, etc.) and Artifacts (`ImageArtifact`, `BlobArtifact`). All image/Pillow concerns live here.
 
-invariant_gfx uses Invariant's `Executor` and store infrastructure directly—no wrapper class is needed.
+Invariant GFX uses Invariant's `Executor` and store infrastructure directly—no wrapper class is needed.
 
 ## Op Standard Library
 
-invariant_gfx provides a standard library of graphics operations, registered under the `gfx:` namespace:
+Invariant GFX provides a standard library of graphics operations, registered under the `gfx:` namespace:
 
 ### Group A: Sources (Data Ingestion)
 - `gfx:resolve_resource`: Resolves bundled resources (icons, images) via JustMyResource (e.g., `"lucide:thermometer"`)
@@ -46,7 +46,7 @@ For detailed Op specifications, see [docs/architecture.md](docs/architecture.md)
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd invariant_gfx
+cd invariant-gfx
 
 # Install dependencies
 poetry install
@@ -150,9 +150,9 @@ See [docs/status.md](docs/status.md) for detailed implementation status.
 
 ## Architecture
 
-invariant_gfx uses Invariant's execution model. For details on the two-phase execution model (Context Resolution and Action Execution), see the [upstream documentation](https://github.com/kws/invariant).
+Invariant GFX uses Invariant's execution model. For details on the two-phase execution model (Context Resolution and Action Execution), see the [upstream documentation](https://github.com/kws/invariant).
 
-For invariant_gfx-specific architecture documentation, see [docs/architecture.md](docs/architecture.md).
+For Invariant GFX-specific architecture documentation, see [docs/architecture.md](docs/architecture.md).
 
 For AI agents working with this codebase, see [AGENTS.md](AGENTS.md).
 

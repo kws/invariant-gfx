@@ -1,4 +1,4 @@
-"""invariant_gfx: A deterministic, DAG-based graphics engine built on Invariant."""
+"""Invariant GFX: A deterministic, DAG-based graphics engine built on Invariant."""
 
 from invariant.registry import OpRegistry
 

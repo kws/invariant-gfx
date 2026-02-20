@@ -1,4 +1,4 @@
-"""Graphics operations for invariant_gfx."""
+"""Graphics operations for Invariant GFX."""
 
 from invariant_gfx.ops.blob_to_image import blob_to_image
 from invariant_gfx.ops.composite import composite
