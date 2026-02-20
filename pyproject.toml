@@ -15,6 +15,7 @@ packages = [{include = "invariant_gfx", from = "src"}]
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.15.1"
 pytest = "^9.0.2"
+pre-commit = "^3.8.0"
 justmytype = "^0.3.0"
 justmyresource = {extras = ["icon"], version = "^1.1.1"}
 

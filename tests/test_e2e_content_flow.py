@@ -6,7 +6,7 @@ Tests gfx:layout in both row and column modes with differently-sized blocks.
 
 from decimal import Decimal
 
-from invariant import Executor, Node
+from invariant import Executor, Node, ref
 from invariant.registry import OpRegistry
 from invariant.store.memory import MemoryStore
 
@@ -62,7 +62,7 @@ def test_content_flow_row_layout():
                 "direction": "row",
                 "align": "c",  # Center on cross-axis
                 "gap": Decimal("5"),
-                "items": ["block_a", "block_b", "block_c"],
+                "items": [ref("block_a"), ref("block_b"), ref("block_c")],
             },
             deps=["block_a", "block_b", "block_c"],
         ),
@@ -140,7 +140,7 @@ def test_content_flow_column_layout():
                 "direction": "column",
                 "align": "c",  # Center on cross-axis
                 "gap": Decimal("5"),
-                "items": ["block_a", "block_b", "block_c"],
+                "items": [ref("block_a"), ref("block_b"), ref("block_c")],
             },
             deps=["block_a", "block_b", "block_c"],
         ),
@@ -207,7 +207,7 @@ def test_content_flow_fan_out():
                 "direction": "row",
                 "align": "c",
                 "gap": Decimal("5"),
-                "items": ["block_a", "block_b", "block_c"],
+                "items": [ref("block_a"), ref("block_b"), ref("block_c")],
             },
             deps=["block_a", "block_b", "block_c"],
         ),
@@ -218,7 +218,7 @@ def test_content_flow_fan_out():
                 "direction": "column",
                 "align": "c",
                 "gap": Decimal("5"),
-                "items": ["block_a", "block_b", "block_c"],
+                "items": [ref("block_a"), ref("block_b"), ref("block_c")],
             },
             deps=["block_a", "block_b", "block_c"],
         ),

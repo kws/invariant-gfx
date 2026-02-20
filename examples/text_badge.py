@@ -25,12 +25,12 @@ import argparse
 from decimal import Decimal
 from pathlib import Path
 
-from invariant import Executor, Node
+from invariant import Executor, Node, ref
 from invariant.registry import OpRegistry
 from invariant.store.memory import MemoryStore
 
 from invariant_gfx import register_core_ops
-from invariant_gfx.anchors import absolute, relative
+from invariant_gfx.anchors import relative
 
 
 def parse_rgba(color_str: str) -> tuple[int, int, int, int]:
@@ -95,7 +95,7 @@ def create_badge_svg(
     fill_opacity = fill_color[3] / 255.0
     border_opacity = border_color[3] / 255.0
 
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" preserveAspectRatio="none">
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" preserveAspectRatio="none">
   <rect
     x="{border_width}"
     y="{border_width}"
@@ -109,7 +109,7 @@ def create_badge_svg(
     stroke-opacity="{border_opacity}"
     stroke-width="{border_width}"
   />
-</svg>'''
+</svg>"""
     return svg
 
 
@@ -172,10 +172,17 @@ def create_badge_graph(
         "final": Node(
             op_name="gfx:composite",
             params={
-                "layers": {
-                    "badge": absolute(0, 0),  # Badge defines canvas
-                    "text": relative("badge", "c,c"),  # Text centered on badge
-                },
+                "layers": [
+                    {
+                        "image": ref("badge"),
+                        "id": "badge",
+                    },
+                    {
+                        "image": ref("text"),
+                        "anchor": relative("badge", "c@c"),
+                        "id": "text",
+                    },
+                ],
             },
             deps=["badge", "text"],
         ),
@@ -303,4 +310,3 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
-

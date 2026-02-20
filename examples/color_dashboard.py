@@ -13,12 +13,12 @@ import argparse
 from decimal import Decimal
 from pathlib import Path
 
-from invariant import Executor, Node
+from invariant import Executor, Node, ref
 from invariant.registry import OpRegistry
 from invariant.store.memory import MemoryStore
 
 from invariant_gfx import register_core_ops
-from invariant_gfx.anchors import absolute, relative
+from invariant_gfx.anchors import relative
 
 
 # Color mapping
@@ -130,7 +130,7 @@ def create_dashboard_graph(items: list[tuple[str, int, str]], cell_size: int) ->
                 "direction": "column",
                 "align": "c",
                 "gap": Decimal("5"),
-                "items": [label_id, value_id],
+                "items": [ref(label_id), ref(value_id)],
             },
             deps=[label_id, value_id],
         )
@@ -154,12 +154,17 @@ def create_dashboard_graph(items: list[tuple[str, int, str]], cell_size: int) ->
         graph[cell_with_block_id] = Node(
             op_name="gfx:composite",
             params={
-                "layers": {
-                    cell_bg_id: absolute(0, 0),
-                    block_id: relative(
-                        cell_bg_id, "ce,ce", y=-10
-                    ),  # Center-bottom aligned, 10px padding from bottom
-                },
+                "layers": [
+                    {
+                        "image": ref(cell_bg_id),
+                        "id": cell_bg_id,
+                    },
+                    {
+                        "image": ref(block_id),
+                        "anchor": relative(cell_bg_id, "ce@ce", y=-10),
+                        "id": block_id,
+                    },
+                ],
             },
             deps=[cell_bg_id, block_id],
         )
@@ -168,12 +173,17 @@ def create_dashboard_graph(items: list[tuple[str, int, str]], cell_size: int) ->
         graph[cell_id] = Node(
             op_name="gfx:composite",
             params={
-                "layers": {
-                    cell_with_block_id: absolute(0, 0),
-                    text_group_id: relative(
-                        cell_with_block_id, "cs,cs", y=10
-                    ),  # Center-top aligned, 10px padding from top
-                },
+                "layers": [
+                    {
+                        "image": ref(cell_with_block_id),
+                        "id": cell_with_block_id,
+                    },
+                    {
+                        "image": ref(text_group_id),
+                        "anchor": relative(cell_with_block_id, "cs@cs", y=10),
+                        "id": text_group_id,
+                    },
+                ],
             },
             deps=[cell_with_block_id, text_group_id],
         )
@@ -187,7 +197,7 @@ def create_dashboard_graph(items: list[tuple[str, int, str]], cell_size: int) ->
             "direction": "row",
             "align": "c",
             "gap": Decimal("10"),
-            "items": cell_nodes,
+            "items": [ref(node_id) for node_id in cell_nodes],
         },
         deps=cell_nodes,
     )
@@ -208,10 +218,17 @@ def create_dashboard_graph(items: list[tuple[str, int, str]], cell_size: int) ->
     graph["final"] = Node(
         op_name="gfx:composite",
         params={
-            "layers": {
-                "final_bg": absolute(0, 0),
-                "dashboard": relative("final_bg", "c,c"),
-            },
+            "layers": [
+                {
+                    "image": ref("final_bg"),
+                    "id": "final_bg",
+                },
+                {
+                    "image": ref("dashboard"),
+                    "anchor": relative("final_bg", "c@c"),
+                    "id": "dashboard",
+                },
+            ],
         },
         deps=["final_bg", "dashboard"],
     )
