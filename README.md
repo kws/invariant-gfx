@@ -4,44 +4,23 @@ A deterministic, functional graphics pipeline built on **Invariant**. Invariant 
 
 > **Note**: This project builds on [Invariant](https://github.com/kws/invariant/blob/main/README.md), a deterministic execution engine for DAGs. For information about Invariant's core concepts (DAG execution, caching, execution model, parameter markers, etc.), see the [upstream README](https://github.com/kws/invariant/blob/main/README.md) and [Invariant documentation](https://github.com/kws/invariant).
 
-## Features
+## What is Invariant GFX?
 
-- **Smart Layout**: Ops can inspect upstream artifact dimensions to calculate positions dynamically
-- **Anchor-Based Composition**: Position layers relative to previously-placed named layers using `absolute()` and `relative()` builder functions
-- **Content-Sized Layout**: Flow-based arrangement (row/column) with automatic sizing
+Invariant GFX gives you aggressive caching and deduplication: identical visual operations run once and are reused. Outputs are bit-for-bit reproducible, and layout can be driven by upstream artifact dimensions so the same graph scales across sizes.
 
-## Relationship to Invariant
+**High-level features:**
 
-Invariant GFX is a **child project** of Invariant:
+- **Smart layout** — Ops inspect upstream artifact dimensions to calculate positions dynamically.
+- **Anchor-based composition** — Position layers with `absolute()` and `relative()` builder functions, referencing previously-placed named layers.
+- **Content-sized layout** — Row/column flow with automatic sizing.
+- **Effects as subgraphs** — Filter primitives (blur, alpha, morphology) are composed into effect recipes (e.g. drop shadow) via `SubGraphNode`. See [docs/effects.md](docs/effects.md).
+- **Deterministic and cacheable** — No floats in cacheable data; all layout uses `Decimal` or integers.
 
-- **Invariant (Parent)**: Provides the DAG execution engine, caching infrastructure, and core protocols. Invariant has **NO image awareness**—it is domain-agnostic.
-- **Invariant GFX (Child)**: Provides graphics-specific Ops (`gfx:render_text`, `gfx:composite`, `gfx:render_svg`, etc.) and Artifacts (`ImageArtifact`, `BlobArtifact`). All image/Pillow concerns live here.
+**Relationship to Invariant:** Invariant GFX is a child project of Invariant. The parent provides the DAG execution engine, caching, and core protocols (no image awareness). Invariant GFX provides graphics ops (`gfx:render_text`, `gfx:composite`, `gfx:render_svg`, etc.) and artifacts (`ImageArtifact`, `BlobArtifact`). It uses Invariant's Executor and store directly—no wrapper.
 
-Invariant GFX uses Invariant's `Executor` and store infrastructure directly—no wrapper class is needed.
+## Get started
 
-## Op Standard Library
-
-Invariant GFX provides a standard library of graphics operations, registered under the `gfx:` namespace:
-
-### Group A: Sources (Data Ingestion)
-- `gfx:resolve_resource`: Resolves bundled resources (icons, images) via JustMyResource (e.g., `"lucide:thermometer"`)
-- `gfx:create_solid`: Generates solid color canvases (RGBA)
-
-### Group B: Transformers (Rendering)
-- `gfx:render_svg`: Converts SVG blobs into raster artifacts using cairosvg
-- `gfx:render_text`: Creates tight-fitting "Text Pill" artifacts (supports string font names via JustMyType and direct `BlobArtifact` font injection)
-- `gfx:resize`: Scales an `ImageArtifact` to target dimensions (LANCZOS resampling)
-
-### Group C: Composition (Combiners)
-- `gfx:composite`: Fixed-size composition engine with anchor-based positioning (`absolute()`, `relative()`)
-- `gfx:layout`: Content-sized arrangement engine (row/column flow)
-
-### Group D: Type Conversion (Casting)
-- `gfx:blob_to_image`: Parses raw binary data (PNG, JPEG, WEBP) into `ImageArtifact`
-
-For detailed Op specifications, see [docs/architecture.md](docs/architecture.md).
-
-## Installation
+### Installation
 
 ```bash
 # Clone the repository
@@ -52,123 +31,97 @@ cd invariant-gfx
 uv sync
 ```
 
-**Note**: This project depends on a local development version of Invariant. The dependency is configured in `pyproject.toml` as a file path reference.
+This project depends on a local development version of Invariant; the dependency is configured in `pyproject.toml` as a file path reference.
 
-## Quick Start
+### Quick Start
 
-This example demonstrates graphics-specific operations. For details on Invariant's execution model, parameter markers (`ref()`, `cel()`, `${...}`), and context injection, see the [upstream README](https://github.com/kws/invariant/blob/main/README.md).
+Minimal example: text on a solid background, with proportional font sizing (14pt at 72px reference). Run with `uv run python -c "..."` or adapt from [examples/quick_start.py](examples/quick_start.py).
 
 ```python
+from decimal import Decimal
 from invariant import Executor, Node, ref
 from invariant.registry import OpRegistry
 from invariant.store.memory import MemoryStore
 
 from invariant_gfx import register_core_ops
-from invariant_gfx.anchors import absolute, relative
+from invariant_gfx.anchors import relative
 
-# Register graphics ops
 registry = OpRegistry()
-register_core_ops(registry)  # Registers gfx:* ops
+register_core_ops(registry)
+store = MemoryStore()
+executor = Executor(registry=registry, store=store)
 
-# Define the graph template (designed at 72px reference size)
+size = 72
+font_size = int(Decimal(str(size)) * Decimal("14") / Decimal("72"))
+
 graph = {
-    # Render text with proportional sizing
     "text": Node(
         op_name="gfx:render_text",
         params={
             "text": "Hello",
             "font": "Geneva",
-            "size": "${decimal(root.width) * decimal('14') / decimal('72')}",  # 14pt at 72px, scales proportionally
-            "color": (255, 255, 255, 255),  # White RGBA
+            "size": font_size,
+            "color": (255, 255, 255, 255),
         },
-        deps=["root"],
+        deps=[],
     ),
-    # Create background (size from context)
     "background": Node(
         op_name="gfx:create_solid",
         params={
-            "size": ("${root.width}", "${root.height}"),
-            "color": (40, 40, 40, 255),  # Dark gray RGBA
+            "size": (size, size),
+            "color": (40, 40, 40, 255),
         },
-        deps=["root"],
+        deps=[],
     ),
-    # Composite: center text on background
     "final": Node(
         op_name="gfx:composite",
         params={
             "layers": [
-                {
-                    "image": ref("background"),
-                    "id": "background",
-                },
-                {
-                    "image": ref("text"),
-                    "anchor": relative("background", "c@c"),
-                    "id": "text",
-                },
+                {"image": ref("background"), "id": "background"},
+                {"image": ref("text"), "anchor": relative("background", "c@c"), "id": "text"},
             ],
         },
         deps=["background", "text"],
     ),
 }
 
-# Execute the graph
-store = MemoryStore()
-executor = Executor(registry=registry, store=store)
-
-# Render at 72x72 (text at 14pt)
-results = executor.execute(graph, context={"root": {"width": 72, "height": 72}})
-results["final"].image.save("output_72.png", format="PNG")
-
-# Render at 144x144 (text scales to 28pt automatically)
-results = executor.execute(graph, context={"root": {"width": 144, "height": 144}})
-results["final"].image.save("output_144.png", format="PNG")
+results = executor.execute(graph)
+results["final"].image.save("output.png", format="PNG")
 ```
 
-For more complete examples, see:
-- `examples/thermometer_button.py` — Icon + text + layout + composite pipeline
-- `examples/text_badge.py` — Dynamic SVG resizing driven by text dimensions
-- `examples/color_dashboard.py` — Multi-cell dashboard with nested layouts
+Proportional sizing can also be driven by **context + CEL** when using the template+context pattern; see [docs/architecture.md](docs/architecture.md).
 
-For the full Thermometer pipeline and template + context pattern, see [docs/architecture.md](docs/architecture.md).
+### Examples
 
-## Status
+- `examples/quick_start.py` — Minimal text-on-background with proportional sizing.
+- `examples/thermometer_button.py` — Icon + text + layout + composite pipeline.
+- `examples/text_badge.py` — Dynamic SVG resizing driven by text dimensions.
+- `examples/color_dashboard.py` — Multi-cell dashboard with nested layouts.
+- `examples/text_drop_shadow.py` — Text with drop-shadow recipe (effect subgraph).
 
-**Architecture**: Complete and documented
+**Where to go next:** For full op specs, pipeline examples, and the template+context pattern, see [docs/architecture.md](docs/architecture.md). For effects and filter primitives, see [docs/effects.md](docs/effects.md).
 
-**Implementation**: V1 op library complete
-- Artifact types (`ImageArtifact`, `BlobArtifact`): ✅ Implemented
-- Anchor functions (`absolute()`, `relative()`): ✅ Implemented
-- Op standard library (8 ops): ✅ Implemented
-- `register_core_ops()` registration: ✅ Implemented
-- Integration with JustMyType/JustMyResource: ✅ Implemented
-- Unit tests (94 tests): ✅ All passing
-- E2E tests (Use Cases 1 & 2): ✅ Passing
-- E2E context injection (Use Case 3): ⏳ Placeholder
+### Reference
 
-See [docs/status.md](docs/status.md) for detailed implementation status.
+Invariant GFX provides graphics ops under the `gfx:` namespace: **sources** (resolve_resource, create_solid), **transformers** (render_svg, render_text, resize), **composition** (composite, layout), **casting** (blob_to_image), and **effects** (extract_alpha, blur, colorize, translate, pad, etc.). See [docs/architecture.md](docs/architecture.md) and [docs/effects.md](docs/effects.md) for the full list and specifications.
 
-## Architecture
-
-Invariant GFX uses Invariant's execution model. For details on the two-phase execution model (Context Resolution and Action Execution), see the [upstream documentation](https://github.com/kws/invariant).
-
-For Invariant GFX-specific architecture documentation, see [docs/architecture.md](docs/architecture.md).
-
-For AI agents working with this codebase, see [AGENTS.md](AGENTS.md).
-
-## Development
+## Contributing
 
 ```bash
 # Run tests
 uv run pytest
 
-# Run linting
+# Lint
 uv run ruff check src/ tests/
 
-# Format code
+# Format
 uv run ruff format src/ tests/
 ```
 
+For constraints, terminology, and implementation context, see [AGENTS.md](AGENTS.md). Implementation status and test coverage are documented in [docs/status.md](docs/status.md).
+
+For execution model and GFX-specific design, see [docs/architecture.md](docs/architecture.md).
+
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
