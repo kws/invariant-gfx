@@ -109,9 +109,12 @@ def composite(layers: list[dict[str, Any]]) -> ICacheable:
             # For now, fall back to normal mode
             pass
 
-        # Paste with alpha channel support
+        # Use alpha_composite so low-alpha pixels (e.g. shadows) are preserved.
+        # paste(im, pos, im) would squash alpha (image_alpha^2/255) on transparent canvas.
         if layer_image.mode == "RGBA":
-            canvas.paste(layer_image, (x, y), layer_image)
+            temp = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 0))
+            temp.paste(layer_image, (x, y))
+            canvas = Image.alpha_composite(canvas, temp)
         else:
             canvas.paste(layer_image, (x, y))
 

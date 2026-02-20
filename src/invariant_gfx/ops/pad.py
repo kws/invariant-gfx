@@ -46,5 +46,5 @@ def pad(
     out_h = h + top + bottom
 
     canvas = Image.new("RGBA", (out_w, out_h), (0, 0, 0, 0))
-    canvas.paste(image.image, (left, top), image.image)
+    canvas.paste(image.image, (left, top))
     return ImageArtifact(canvas)

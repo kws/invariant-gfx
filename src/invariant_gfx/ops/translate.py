@@ -34,5 +34,5 @@ def translate(image: ImageArtifact, dx: int, dy: int) -> ICacheable:
     paste_y = dy if dy >= 0 else 0
 
     canvas = Image.new("RGBA", (out_w, out_h), (0, 0, 0, 0))
-    canvas.paste(image.image, (paste_x, paste_y), image.image)
+    canvas.paste(image.image, (paste_x, paste_y))
     return ImageArtifact(canvas)

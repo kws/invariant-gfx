@@ -95,8 +95,10 @@ def layout(
             else:  # align == "e"
                 y = total_height - item.height
 
-            # Paste item
-            canvas.paste(item.image, (x, y), item.image)
+            # Use alpha_composite so low-alpha pixels are preserved
+            temp = Image.new("RGBA", (total_width, total_height), (0, 0, 0, 0))
+            temp.paste(item.image, (x, y))
+            canvas = Image.alpha_composite(canvas, temp)
 
             # Move to next position
             x += item.width + gap_int
@@ -113,8 +115,10 @@ def layout(
             else:  # align == "e"
                 x = total_width - item.width
 
-            # Paste item
-            canvas.paste(item.image, (x, y), item.image)
+            # Use alpha_composite so low-alpha pixels are preserved
+            temp = Image.new("RGBA", (total_width, total_height), (0, 0, 0, 0))
+            temp.paste(item.image, (x, y))
+            canvas = Image.alpha_composite(canvas, temp)
 
             # Move to next position
             y += item.height + gap_int

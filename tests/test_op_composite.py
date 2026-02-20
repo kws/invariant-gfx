@@ -295,3 +295,26 @@ class TestComposite:
 
         with pytest.raises(ValueError, match="Alignment string must use '@' separator"):
             composite(layers)
+
+    def test_transparent_background_preserves_alpha(self):
+        """Semi-transparent layer on transparent background: alpha is preserved (not squared)."""
+        bg = ImageArtifact(Image.new("RGBA", (20, 20), (0, 0, 0, 0)))
+        # Red with alpha 180; paste-with-mask would give alpha ~ 180^2/255 ~ 127
+        overlay = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 180)))
+
+        layers = [
+            {"image": bg, "id": "bg"},
+            {
+                "image": overlay,
+                "anchor": relative("bg", "c@c"),
+                "id": "overlay",
+            },
+        ]
+
+        result = composite(layers)
+        # Center pixel should have alpha 180 (proper alpha_composite), not ~127 (squared)
+        center = result.image.getpixel((10, 10))
+        assert center[0] == 255
+        assert center[1] == 0
+        assert center[2] == 0
+        assert center[3] == 180
