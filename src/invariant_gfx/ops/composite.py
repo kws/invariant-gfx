@@ -9,80 +9,77 @@ from invariant.protocol import ICacheable
 from invariant_gfx.artifacts import ImageArtifact
 
 
-def composite(manifest: dict[str, Any]) -> ICacheable:
+def composite(layers: list[dict[str, Any]]) -> ICacheable:
     """Composite multiple layers onto a fixed-size canvas.
 
     Args:
-        manifest: Must contain:
-            - 'layers': dict[str, dict] mapping dependency IDs to anchor specs
-            - Artifacts for each dependency ID (as ImageArtifact)
+        layers: List of layer dicts, ordered by z-order (first drawn first, i.e. bottommost).
+            Each layer dict must contain:
+            - 'image': ImageArtifact (the layer content, resolved from ref() during Phase 1)
+            - 'anchor': dict (required for all layers except the first, forbidden on first)
+            - 'id': str (optional, required if referenced by relative() anchor)
+            - 'mode': str (optional, default "normal")
+            - 'opacity': Decimal (optional, default 1.0)
 
     Returns:
         ImageArtifact with composited result.
 
     Raises:
-        KeyError: If required keys are missing.
-        ValueError: If z-order is ambiguous or positioning fails.
+        ValueError: If layers structure is invalid, first layer has anchor, or positioning fails.
     """
-    if "layers" not in manifest:
-        raise KeyError("gfx:composite requires 'layers' in manifest")
+    # Validate layers is a list
+    if not isinstance(layers, list):
+        raise ValueError(f"layers must be a list, got {type(layers)}")
 
-    layers = manifest["layers"]
-    if not isinstance(layers, dict):
-        raise ValueError(f"layers must be a dict, got {type(layers)}")
+    if len(layers) == 0:
+        raise ValueError("layers must contain at least one layer")
 
-    # Extract artifacts for each layer
-    artifacts: dict[str, ImageArtifact] = {}
-    for layer_id in layers.keys():
-        if layer_id not in manifest:
-            raise KeyError(
-                f"Layer '{layer_id}' not found in manifest. "
-                f"Make sure it's listed in node.deps."
-            )
-        artifact = manifest[layer_id]
-        if not isinstance(artifact, ImageArtifact):
-            raise ValueError(
-                f"Layer '{layer_id}' must be ImageArtifact, got {type(artifact)}"
-            )
-        artifacts[layer_id] = artifact
+    # Validate first layer (no anchor, must have image)
+    first_layer = layers[0]
+    if "anchor" in first_layer:
+        raise ValueError("First layer must not have an 'anchor' field")
+    if "image" not in first_layer:
+        raise ValueError("First layer must have 'image' field")
 
-    # Determine z-order from parent topology
-    z_order = _determine_z_order(layers)
+    # Get canvas size from first layer
+    first_image = first_layer["image"]
+    if not isinstance(first_image, ImageArtifact):
+        raise ValueError("First layer image must be ImageArtifact")
+    canvas_width = first_image.width
+    canvas_height = first_image.height
 
-    # Find the root layer (first in z-order, must be absolute)
-    root_id = z_order[0]
-    root_spec = layers[root_id]
-    if root_spec.get("type") != "absolute":
-        raise ValueError(
-            f"First layer in z-order ('{root_id}') must use absolute() positioning"
-        )
-
-    # Get root layer dimensions (defines canvas size)
-    root_artifact = artifacts[root_id]
-    canvas_width = root_artifact.width
-    canvas_height = root_artifact.height
+    # Validate subsequent layers (must have anchor and image)
+    for i, layer in enumerate(layers[1:], start=1):
+        if "anchor" not in layer:
+            raise ValueError(f"Layer {i} must have 'anchor' field")
+        if "image" not in layer:
+            raise ValueError(f"Layer {i} must have 'image' field")
 
     # Create canvas
     canvas = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 0))
 
-    # Track placed layers for relative positioning
-    placed: dict[
-        str, tuple[int, int, int, int]
-    ] = {}  # layer_id -> (x, y, width, height)
+    # Track placed layers for relative positioning (by id field)
+    placed: dict[str, tuple[int, int, int, int]] = {}  # id -> (x, y, width, height)
 
-    # Composite layers in z-order
-    for layer_id in z_order:
-        layer_spec = layers[layer_id]
-        artifact = artifacts[layer_id]
+    # Process layers in list order (z-order = list position)
+    for layer in layers:
+        image = layer["image"]
+        if not isinstance(image, ImageArtifact):
+            raise ValueError(f"Layer image must be ImageArtifact, got {type(image)}")
+
+        layer_id = layer.get("id")  # Optional, but needed for relative() references
+        anchor = layer.get("anchor")  # None for first layer
+        mode = layer.get("mode", "normal")
+        opacity_val = layer.get("opacity", 1.0)
 
         # Resolve position
-        x, y = _resolve_position(
-            layer_spec, layer_id, artifacts, placed, canvas_width, canvas_height
-        )
-
-        # Get optional properties
-        mode = layer_spec.get("mode", "normal")
-        opacity_val = layer_spec.get("opacity", 1.0)
+        if anchor is None:
+            # First layer at origin
+            x, y = 0, 0
+        else:
+            x, y = _resolve_position(
+                anchor, image, layer_id, placed, canvas_width, canvas_height
+            )
 
         # Convert opacity
         if isinstance(opacity_val, Decimal):
@@ -95,7 +92,7 @@ def composite(manifest: dict[str, Any]) -> ICacheable:
         opacity = max(0.0, min(1.0, opacity))  # Clamp to [0, 1]
 
         # Apply opacity if needed
-        layer_image = artifact.image
+        layer_image = image.image
         if opacity < 1.0:
             # Create a copy with adjusted alpha
             layer_image = layer_image.copy()
@@ -118,122 +115,67 @@ def composite(manifest: dict[str, Any]) -> ICacheable:
         else:
             canvas.paste(layer_image, (x, y))
 
-        # Record placement for relative positioning
-        placed[layer_id] = (x, y, artifact.width, artifact.height)
+        # Record placement by id for relative() lookups
+        if layer_id:
+            placed[layer_id] = (x, y, image.width, image.height)
 
     return ImageArtifact(canvas)
 
 
-def _determine_z_order(layers: dict[str, dict[str, Any]]) -> list[str]:
-    """Determine z-order from parent topology.
-
-    Returns layers in draw order (bottom to top).
-    Raises ValueError if z-order is ambiguous (siblings share parent).
-    """
-    # Build parent map
-    parent_map: dict[str, str | None] = {}
-    for layer_id, spec in layers.items():
-        if spec.get("type") == "relative":
-            parent = spec.get("parent")
-            if not isinstance(parent, str):
-                raise ValueError(
-                    f"Layer '{layer_id}' relative() anchor must have 'parent' as string"
-                )
-            parent_map[layer_id] = parent
-        else:
-            parent_map[layer_id] = None
-
-    # Find root (no parent)
-    roots = [lid for lid, parent in parent_map.items() if parent is None]
-    if len(roots) != 1:
-        raise ValueError(
-            f"Composite must have exactly one root layer (absolute positioning), "
-            f"found {len(roots)}: {roots}"
-        )
-
-    root = roots[0]
-
-    # Build child map to detect siblings
-    children: dict[str, list[str]] = {}
-    for layer_id, parent in parent_map.items():
-        if parent is not None:
-            if parent not in children:
-                children[parent] = []
-            children[parent].append(layer_id)
-
-    # Check for siblings (ambiguous z-order)
-    for parent, siblings in children.items():
-        if len(siblings) > 1:
-            raise ValueError(
-                f"Ambiguous z-order: multiple layers share parent '{parent}': {siblings}. "
-                f"Restructure to form a chain or use explicit layer_order (future enhancement)."
-            )
-
-    # Build z-order by following the chain
-    z_order = [root]
-    current = root
-
-    while current in children:
-        # Should be exactly one child (we checked for siblings above)
-        child = children[current][0]
-        z_order.append(child)
-        current = child
-
-    # Verify all layers are included
-    if len(z_order) != len(layers):
-        missing = set(layers.keys()) - set(z_order)
-        raise ValueError(
-            f"Z-order determination incomplete. Missing layers: {missing}. "
-            f"This may indicate a cycle or disconnected layers."
-        )
-
-    return z_order
-
-
 def _resolve_position(
-    spec: dict[str, Any],
-    layer_id: str,
-    artifacts: dict[str, ImageArtifact],
+    anchor: dict[str, Any],
+    image: ImageArtifact,
+    layer_id: str | None,
     placed: dict[str, tuple[int, int, int, int]],
     canvas_width: int,
     canvas_height: int,
 ) -> tuple[int, int]:
     """Resolve layer position from anchor spec.
 
+    Args:
+        anchor: Anchor specification dict (from absolute() or relative())
+        image: ImageArtifact for this layer
+        layer_id: Optional layer ID (for error messages)
+        placed: Dict of placed layers by id -> (x, y, width, height)
+        canvas_width: Canvas width
+        canvas_height: Canvas height
+
     Returns:
         (x, y) pixel coordinates.
+
+    Raises:
+        ValueError: If anchor type is unknown or relative() parent not found.
     """
-    anchor_type = spec.get("type")
+    anchor_type = anchor.get("type")
 
     if anchor_type == "absolute":
-        x = _to_int(spec.get("x", 0))
-        y = _to_int(spec.get("y", 0))
+        x = _to_int(anchor.get("x", 0))
+        y = _to_int(anchor.get("y", 0))
         return (x, y)
 
     elif anchor_type == "relative":
-        parent_id = spec.get("parent")
+        parent_id = anchor.get("parent")
         if not isinstance(parent_id, str):
             raise ValueError(
-                f"Layer '{layer_id}' relative() anchor must have 'parent' as string"
+                f"Layer {layer_id or 'unknown'}: relative() anchor must have 'parent' as string"
             )
 
         if parent_id not in placed:
             raise ValueError(
-                f"Layer '{layer_id}' references parent '{parent_id}' which hasn't been placed yet. "
-                f"This indicates a z-order issue."
+                f"Layer {layer_id or 'unknown'}: references parent '{parent_id}' which hasn't been placed yet. "
+                f"Make sure the parent layer has an 'id' field and appears earlier in the layers list."
             )
 
-        align_str = spec.get("align", "c,c")
-        x_offset = _to_int(spec.get("x", 0))
-        y_offset = _to_int(spec.get("y", 0))
+        align_str = anchor.get("align", "c@c")
+        x_offset = _to_int(anchor.get("x", 0))
+        y_offset = _to_int(anchor.get("y", 0))
 
         # Get parent bounds
         parent_x, parent_y, parent_w, parent_h = placed[parent_id]
 
         # Get self bounds
-        self_artifact = artifacts[layer_id]
-        self_w = self_artifact.width
-        self_h = self_artifact.height
+        self_w = image.width
+        self_h = image.height
 
         # Parse alignment
         self_align, parent_align = _parse_alignment(align_str)
@@ -255,17 +197,23 @@ def _resolve_position(
 def _parse_alignment(align_str: str) -> tuple[tuple[str, str], tuple[str, str]]:
     """Parse alignment string into self and parent alignments.
 
-    Format: "c,c" or "se,ee" where:
-    - Comma separates self and parent
-    - Single char applies to both axes
+    Format: "self@parent" (e.g., "c@c", "se@es") where:
+    - @ separates self and parent
+    - Single char applies to both axes (e.g., "c" means "cc")
     - Two chars: first is x-axis, second is y-axis
 
     Returns:
         ((self_x, self_y), (parent_x, parent_y))
+
+    Raises:
+        ValueError: If alignment string format is invalid.
     """
-    parts = align_str.split(",")
+    if "@" not in align_str:
+        raise ValueError(f"Alignment string must use '@' separator, got '{align_str}'")
+
+    parts = align_str.split("@")
     if len(parts) != 2:
-        raise ValueError(f"Alignment string must be 'self,parent', got '{align_str}'")
+        raise ValueError(f"Alignment string must be 'self@parent', got '{align_str}'")
 
     self_str = parts[0].strip()
     parent_str = parts[1].strip()

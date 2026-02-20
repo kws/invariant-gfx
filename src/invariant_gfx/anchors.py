@@ -30,12 +30,12 @@ def relative(
     """Position a layer relative to a previously-placed layer.
 
     Args:
-        parent: Dependency ID of the layer to position relative to.
-        align: Alignment string (e.g., "c,c" for center-center, "se,se" for start-end).
-               Format: comma-separated pair where first value = self alignment,
-               second value = parent alignment. Each value can be:
-               - "s" (start), "c" (center), "e" (end) for single-axis
-               - "se", "ce", "ee", etc. for two-axis (x,y)
+        parent: Layer ID (the 'id' field of a previously-listed layer) to position relative to.
+        align: Alignment string (e.g., "c@c" for center-center, "se@es" for start-end).
+               Format: "self@parent" where:
+               - self and parent use 1-2 characters from 's' (start), 'c' (center), 'e' (end)
+               - 1 character applies to both axes (e.g., "c" means "cc")
+               - 2 characters: first is x-axis, second is y-axis
         x: Optional horizontal offset in pixels (default 0). Can be int, Decimal, or str.
         y: Optional vertical offset in pixels (default 0). Can be int, Decimal, or str.
 

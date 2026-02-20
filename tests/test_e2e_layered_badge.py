@@ -6,12 +6,12 @@ Tests the core composition engine with absolute() and relative() positioning.
 
 from decimal import Decimal
 
-from invariant import Executor, Node
+from invariant import Executor, Node, ref
 from invariant.registry import OpRegistry
 from invariant.store.memory import MemoryStore
 
 from invariant_gfx import register_core_ops
-from invariant_gfx.anchors import absolute, relative
+from invariant_gfx.anchors import relative
 
 
 def test_layered_badge_pipeline():
@@ -60,15 +60,22 @@ def test_layered_badge_pipeline():
         "final": Node(
             op_name="gfx:composite",
             params={
-                "layers": {
-                    "background": absolute(0, 0),  # First layer defines canvas
-                    "icon_stand_in": relative(
-                        "background", "c,c"
-                    ),  # Center on background
-                    "badge": relative(
-                        "icon_stand_in", "se,se", x=-2, y=2
-                    ),  # Top-right of icon, with offset
-                },
+                "layers": [
+                    {
+                        "image": ref("background"),
+                        "id": "background",
+                    },
+                    {
+                        "image": ref("icon_stand_in"),
+                        "anchor": relative("background", "c@c"),
+                        "id": "icon_stand_in",
+                    },
+                    {
+                        "image": ref("badge"),
+                        "anchor": relative("icon_stand_in", "se@se", x=-2, y=2),
+                        "id": "badge",
+                    },
+                ],
             },
             deps=["background", "icon_stand_in", "badge"],
         ),
@@ -136,11 +143,22 @@ def test_layered_badge_cache_reuse():
         "final": Node(
             op_name="gfx:composite",
             params={
-                "layers": {
-                    "background": absolute(0, 0),
-                    "icon_stand_in": relative("background", "c,c"),
-                    "badge": relative("icon_stand_in", "se,se", x=-2, y=2),
-                },
+                "layers": [
+                    {
+                        "image": ref("background"),
+                        "id": "background",
+                    },
+                    {
+                        "image": ref("icon_stand_in"),
+                        "anchor": relative("background", "c@c"),
+                        "id": "icon_stand_in",
+                    },
+                    {
+                        "image": ref("badge"),
+                        "anchor": relative("icon_stand_in", "se@se", x=-2, y=2),
+                        "id": "badge",
+                    },
+                ],
             },
             deps=["background", "icon_stand_in", "badge"],
         ),

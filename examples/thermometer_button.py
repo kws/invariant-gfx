@@ -18,12 +18,12 @@ import argparse
 from decimal import Decimal
 from pathlib import Path
 
-from invariant import Executor, Node
+from invariant import Executor, Node, ref
 from invariant.registry import OpRegistry
 from invariant.store.memory import MemoryStore
 
 from invariant_gfx import register_core_ops
-from invariant_gfx.anchors import absolute, relative
+from invariant_gfx.anchors import relative
 
 
 def create_thermometer_graph(
@@ -53,7 +53,7 @@ def create_thermometer_graph(
         "icon": Node(
             op_name="gfx:render_svg",
             params={
-                "svg_content": "${icon_blob}",
+                "svg_content": ref("icon_blob"),
                 "width": Decimal("50"),
                 "height": Decimal("50"),
             },
@@ -86,7 +86,7 @@ def create_thermometer_graph(
                 "direction": "column",
                 "align": "c",
                 "gap": Decimal("5"),
-                "items": ["icon", "text"],
+                "items": [ref("icon"), ref("text")],
             },
             deps=["icon", "text"],
         ),
@@ -94,10 +94,17 @@ def create_thermometer_graph(
         "final": Node(
             op_name="gfx:composite",
             params={
-                "layers": {
-                    "background": absolute(0, 0),  # First layer defines canvas
-                    "content": relative("background", "c,c"),  # Center on background
-                },
+                "layers": [
+                    {
+                        "image": ref("background"),
+                        "id": "background",
+                    },
+                    {
+                        "image": ref("content"),
+                        "anchor": relative("background", "c@c"),
+                        "id": "content",
+                    },
+                ],
             },
             deps=["background", "content"],
         ),

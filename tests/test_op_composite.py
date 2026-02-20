@@ -17,14 +17,14 @@ class TestComposite:
         """Test compositing a single layer."""
         bg = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255)))
 
-        manifest = {
-            "layers": {
-                "bg": absolute(0, 0),
-            },
-            "bg": bg,
-        }
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
+            }
+        ]
 
-        result = composite(manifest)
+        result = composite(layers)
 
         assert isinstance(result, ImageArtifact)
         assert result.width == 10
@@ -36,16 +36,19 @@ class TestComposite:
         bg = ImageArtifact(Image.new("RGBA", (20, 20), (0, 0, 0, 255)))
         content = ImageArtifact(Image.new("RGBA", (10, 10), (255, 255, 255, 255)))
 
-        manifest = {
-            "layers": {
-                "bg": absolute(0, 0),
-                "content": relative("bg", "c,c"),
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
             },
-            "bg": bg,
-            "content": content,
-        }
+            {
+                "image": content,
+                "anchor": relative("bg", "c@c"),
+                "id": "content",
+            },
+        ]
 
-        result = composite(manifest)
+        result = composite(layers)
 
         assert result.width == 20
         assert result.height == 20
@@ -61,18 +64,24 @@ class TestComposite:
         icon = ImageArtifact(Image.new("RGBA", (10, 10), (0, 100, 200, 255)))
         badge = ImageArtifact(Image.new("RGBA", (5, 5), (200, 0, 0, 255)))
 
-        manifest = {
-            "layers": {
-                "bg": absolute(0, 0),
-                "icon": relative("bg", "c,c"),
-                "badge": relative("icon", "se,se", x=-2, y=2),
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
             },
-            "bg": bg,
-            "icon": icon,
-            "badge": badge,
-        }
+            {
+                "image": icon,
+                "anchor": relative("bg", "c@c"),
+                "id": "icon",
+            },
+            {
+                "image": badge,
+                "anchor": relative("icon", "se@se", x=-2, y=2),
+                "id": "badge",
+            },
+        ]
 
-        result = composite(manifest)
+        result = composite(layers)
 
         assert result.width == 30
         assert result.height == 30
@@ -82,82 +91,84 @@ class TestComposite:
         # Corner should be dark gray (background)
         assert result.image.getpixel((0, 0)) == (40, 40, 40, 255)
 
-    def test_missing_layers_key(self):
-        """Test that missing layers raises KeyError."""
-        manifest = {
-            "bg": ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255))),
-        }
+    def test_invalid_layers_type(self):
+        """Test that invalid layers type raises ValueError."""
+        with pytest.raises(ValueError, match="layers must be a list"):
+            composite({"layers": {}})  # type: ignore
 
-        with pytest.raises(KeyError, match="layers"):
-            composite(manifest)
+    def test_empty_layers(self):
+        """Test that empty layers raises ValueError."""
+        with pytest.raises(ValueError, match="layers must contain at least one layer"):
+            composite([])
 
-    def test_missing_artifact(self):
-        """Test that missing artifact raises KeyError."""
-        manifest = {
-            "layers": {
-                "bg": absolute(0, 0),
-            },
-        }
+    def test_first_layer_with_anchor(self):
+        """Test that first layer with anchor raises ValueError."""
+        bg = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255)))
 
-        with pytest.raises(KeyError, match="not found in manifest"):
-            composite(manifest)
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
+                "anchor": absolute(0, 0),  # Forbidden on first layer
+            }
+        ]
 
-    def test_ambiguous_z_order(self):
-        """Test that ambiguous z-order (siblings) raises ValueError."""
-        bg = ImageArtifact(Image.new("RGBA", (20, 20), (0, 0, 0, 255)))
-        layer1 = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255)))
-        layer2 = ImageArtifact(Image.new("RGBA", (10, 10), (0, 255, 0, 255)))
+        with pytest.raises(
+            ValueError, match="First layer must not have an 'anchor' field"
+        ):
+            composite(layers)
 
-        manifest = {
-            "layers": {
-                "bg": absolute(0, 0),
-                "layer1": relative("bg", "c,c"),
-                "layer2": relative("bg", "c,c"),  # Sibling of layer1
-            },
-            "bg": bg,
-            "layer1": layer1,
-            "layer2": layer2,
-        }
-
-        with pytest.raises(ValueError, match="Ambiguous z-order"):
-            composite(manifest)
-
-    def test_no_root_layer(self):
-        """Test that missing root layer raises ValueError."""
+    def test_subsequent_layer_without_anchor(self):
+        """Test that subsequent layer without anchor raises ValueError."""
         bg = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255)))
         content = ImageArtifact(Image.new("RGBA", (5, 5), (0, 255, 0, 255)))
 
-        manifest = {
-            "layers": {
-                "bg": relative("content", "c,c"),  # No root!
-                "content": relative("bg", "c,c"),
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
             },
-            "bg": bg,
-            "content": content,
-        }
+            {
+                "image": content,
+                # Missing anchor - should raise error
+                "id": "content",
+            },
+        ]
 
-        with pytest.raises(ValueError, match="exactly one root layer"):
-            composite(manifest)
+        with pytest.raises(ValueError, match="Layer 1 must have 'anchor' field"):
+            composite(layers)
+
+    def test_missing_image_field(self):
+        """Test that missing image field raises ValueError."""
+        layers = [
+            {
+                # Missing image field
+                "id": "bg",
+            }
+        ]
+
+        with pytest.raises(ValueError, match="First layer must have 'image' field"):
+            composite(layers)
 
     def test_opacity(self):
         """Test opacity support."""
         bg = ImageArtifact(Image.new("RGBA", (10, 10), (255, 255, 255, 255)))
         overlay = ImageArtifact(Image.new("RGBA", (10, 10), (0, 0, 0, 255)))
 
-        # Create overlay spec with opacity
-        overlay_spec = relative("bg", "c,c")
-        overlay_spec["opacity"] = Decimal("0.5")
-
-        manifest = {
-            "layers": {
-                "bg": absolute(0, 0),
-                "overlay": overlay_spec,
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
             },
-            "bg": bg,
-            "overlay": overlay,
-        }
+            {
+                "image": overlay,
+                "anchor": relative("bg", "c@c"),
+                "id": "overlay",
+                "opacity": Decimal("0.5"),
+            },
+        ]
 
-        result = composite(manifest)
+        result = composite(layers)
 
         # With 50% opacity black over white, should be gray
         pixel = result.image.getpixel((5, 5))
@@ -176,41 +187,111 @@ class TestComposite:
         bg = ImageArtifact(Image.new("RGBA", (20, 20), (0, 0, 0, 255)))
         content = ImageArtifact(Image.new("RGBA", (10, 10), (255, 255, 255, 255)))
 
-        # Test "s,e" alignment (start to end)
-        manifest = {
-            "layers": {
-                "bg": absolute(0, 0),
-                "content": relative("bg", "s,e"),
+        # Test "e@e" alignment (end to end, right-aligned)
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
             },
-            "bg": bg,
-            "content": content,
-        }
-
-        result = composite(manifest)
-        assert result.width == 20
-        assert result.height == 20
-
-        # Content should be positioned at (20, 20) - start of content at end of bg
-        # So content extends from (20, 20) to (30, 30), which is outside canvas
-        # Actually, let me reconsider: "s,e" means start of self aligns to end of parent
-        # So if bg is 20x20 at (0,0), its end is at (20, 20)
-        # Content start should be at (20, 20), so content is at (20, 20) to (30, 30)
-        # This is outside the canvas, so we won't see it
-        # Let me use a simpler test - "e,e" (end to end, right-aligned)
-
-        manifest2 = {
-            "layers": {
-                "bg": absolute(0, 0),
-                "content": relative("bg", "e,e"),
+            {
+                "image": content,
+                "anchor": relative("bg", "e@e"),
+                "id": "content",
             },
-            "bg": bg,
-            "content": content,
-        }
+        ]
 
-        result2 = composite(manifest2)
+        result = composite(layers)
         # Content end should align with bg end (20, 20)
         # So content should be at (10, 10) to (20, 20)
-        assert result2.width == 20
-        assert result2.height == 20
+        assert result.width == 20
+        assert result.height == 20
         # Bottom-right corner should be white
-        assert result2.image.getpixel((19, 19)) == (255, 255, 255, 255)
+        assert result.image.getpixel((19, 19)) == (255, 255, 255, 255)
+
+    def test_relative_parent_not_found(self):
+        """Test that relative() with non-existent parent raises ValueError."""
+        bg = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255)))
+        content = ImageArtifact(Image.new("RGBA", (5, 5), (0, 255, 0, 255)))
+
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
+            },
+            {
+                "image": content,
+                "anchor": relative("nonexistent", "c@c"),
+                "id": "content",
+            },
+        ]
+
+        with pytest.raises(
+            ValueError,
+            match="references parent 'nonexistent' which hasn't been placed yet",
+        ):
+            composite(layers)
+
+    def test_relative_parent_no_id(self):
+        """Test that relative() parent must have id field."""
+        bg = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255)))
+        content = ImageArtifact(Image.new("RGBA", (5, 5), (0, 255, 0, 255)))
+
+        layers = [
+            {
+                "image": bg,
+                # Missing id - can't be referenced
+            },
+            {
+                "image": content,
+                "anchor": relative("bg", "c@c"),
+                "id": "content",
+            },
+        ]
+
+        with pytest.raises(
+            ValueError, match="references parent 'bg' which hasn't been placed yet"
+        ):
+            composite(layers)
+
+    def test_alignment_format_at_sign(self):
+        """Test that alignment format uses @ separator."""
+        bg = ImageArtifact(Image.new("RGBA", (20, 20), (0, 0, 0, 255)))
+        content = ImageArtifact(Image.new("RGBA", (10, 10), (255, 255, 255, 255)))
+
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
+            },
+            {
+                "image": content,
+                "anchor": relative("bg", "c@c"),  # @ format
+                "id": "content",
+            },
+        ]
+
+        result = composite(layers)
+        assert result.width == 20
+        assert result.height == 20
+        # Center should be white
+        assert result.image.getpixel((10, 10)) == (255, 255, 255, 255)
+
+    def test_alignment_format_invalid(self):
+        """Test that invalid alignment format raises ValueError."""
+        bg = ImageArtifact(Image.new("RGBA", (20, 20), (0, 0, 0, 255)))
+        content = ImageArtifact(Image.new("RGBA", (10, 10), (255, 255, 255, 255)))
+
+        layers = [
+            {
+                "image": bg,
+                "id": "bg",
+            },
+            {
+                "image": content,
+                "anchor": relative("bg", "c,c"),  # Old comma format - should fail
+                "id": "content",
+            },
+        ]
+
+        with pytest.raises(ValueError, match="Alignment string must use '@' separator"):
+            composite(layers)
