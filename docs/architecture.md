@@ -211,16 +211,19 @@ Creates a tight-fitting "Text Pill" artifact using Pillow.
   * `font`: String | `BlobArtifact` (font specification).  
     * If `str`: treated as a font family name (e.g., `"Inter"`, `"Roboto"`), resolved internally via JustMyType.  
     * If `BlobArtifact`: used directly as font file bytes (must be a valid TTF/OTF); raises an error if the blob is not a loadable font.  
-  * `size`: Decimal (font size in points).  
   * `color`: RGBA Tuple\[int, int, int, int\] (0-255 per channel).  
+  * `size`: Decimal | int | str (font size in pixels). **Mutually exclusive with `fit_width`.** Use when fixed size is desired.  
+  * `fit_width`: Decimal | int (target max width in pixels). **Mutually exclusive with `size`.** Uses binary search to find the largest font size where text width <= fit_width, then renders. Callers typically pass `${canvas.width}` via CEL with `deps=["canvas"]`.  
   * `weight`: int | None (font weight 100-900, optional). Only applies when `font` is a string.  
   * `style`: str (font style: `"normal"` or `"italic"`, default `"normal"`). Only applies when `font` is a string.  
 * **Output:** `ImageArtifact` sized to the text bounding box (RGBA mode).  
 * **Implementation:**  
+  * Exactly one of `size` or `fit_width` must be provided; raises `ValueError` if both or neither.  
   * If `font` is a string: uses `FontRegistry.find_font()` from JustMyType to resolve font family, then `FontInfo.load()` to get `PIL.ImageFont`.  
   * If `font` is a `BlobArtifact`: loads font directly from the blob bytes using `PIL.ImageFont.truetype()`.  
+  * For `fit_width`: binary search over font sizes (1 to min(500, fit_width*2)) to find largest size where text fits; then renders at that size.  
   * Then uses Pillow's text rendering to create the image.  
-* **Use Case:** Rendering labels, temperatures, or other text content.
+* **Use Case:** Rendering labels, temperatures, or other text content. Use `fit_width` when text must scale to fit a container (e.g. canvas width).
 
 #### **gfx:resize**
 

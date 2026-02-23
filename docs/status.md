@@ -31,7 +31,7 @@ This document tracks the implementation status of all components specified in [a
 | Operation | Status | Notes |
 |:--|:--|:--|
 | **gfx:render_svg** | ✅ **Implemented** | cairosvg integration. Converts SVG BlobArtifact to ImageArtifact at target dimensions. Fully tested. |
-| **gfx:render_text** | ✅ **Implemented** | JustMyType + Pillow text rendering. Supports string font names (implicit resolution) and BlobArtifact fonts (direct load). Tight bounding box output. Weight/style support for string fonts. Fully tested. |
+| **gfx:render_text** | ✅ **Implemented** | JustMyType + Pillow text rendering. Supports string font names (implicit resolution) and BlobArtifact fonts (direct load). Tight bounding box output. Weight/style support for string fonts. **fit_width** mode: binary search for largest font size that fits within target width (e.g. `${canvas.width}`). Fully tested. |
 | **gfx:resize** | ✅ **Implemented** | Image scaling operation. Pillow resize wrapper with LANCZOS resampling. Supports Decimal/int/string dimensions. Fully tested. |
 
 ### Group C: Composition (Combiners)
@@ -78,7 +78,7 @@ This document tracks the implementation status of all components specified in [a
 | **test_op_resize.py** | ✅ **Implemented** | 10 tests: size validation, aspect handling, dimension conversion, error cases |
 | **test_op_blob_to_image.py** | ✅ **Implemented** | 6 tests: PNG/JPEG parsing, RGBA conversion, error handling |
 | **test_op_layout.py** | ✅ **Implemented** | 18 tests: row/column modes, gap, cross-axis alignment, content sizing, error cases |
-| **test_op_render_text.py** | ✅ **Implemented** | 16 tests: string font, BlobArtifact font, bounding box sizing, weight/style, error cases |
+| **test_op_render_text.py** | ✅ **Implemented** | 21 tests: string font, BlobArtifact font, bounding box sizing, weight/style, fit_width mode, mutual exclusivity, error cases |
 | **test_op_resolve_resource.py** | ✅ **Implemented** | 5 tests: icon pack lookup, content type validation, error handling |
 | **test_op_render_svg.py** | ✅ **Implemented** | 8 tests: SVG rasterization, target dimensions, error handling |
 | **test_e2e_layered_badge.py** | ✅ **Implemented** | 2 tests: Full Use Case 1 pipeline, cache reuse verification. **All passing.** |

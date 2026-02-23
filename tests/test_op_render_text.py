@@ -123,10 +123,13 @@ class TestRenderText:
         pass
 
     def test_missing_size(self):
-        """Test that missing size raises TypeError."""
-        # This test is no longer applicable since size is a required parameter
-        # The function will fail at call time if size is not provided
-        pass
+        """Test that missing both size and fit_width raises ValueError."""
+        with pytest.raises(ValueError, match="must provide either size or fit_width"):
+            render_text(
+                text="Hello",
+                font="Geneva",
+                color=(255, 0, 0, 255),
+            )
 
     def test_missing_color(self):
         """Test that missing color raises TypeError."""
@@ -208,3 +211,71 @@ class TestRenderText:
         # Should have reasonable dimensions (not too large)
         assert result.width < 100  # "Hi" should be small
         assert result.height < 50
+
+    def test_fit_width_basic(self):
+        """Test fit_width with short text - result fits within target width."""
+        result = render_text(
+            text="Hello",
+            font="Geneva",
+            fit_width=100,
+            color=(255, 0, 0, 255),
+        )
+
+        assert isinstance(result, ImageArtifact)
+        assert result.width <= 105  # text width + padding (2*2)
+        assert result.height > 0
+
+    def test_fit_width_long_text(self):
+        """Test fit_width with longer text fits within target."""
+        result = render_text(
+            text="Hello World Example",
+            font="Geneva",
+            fit_width=150,
+            color=(0, 255, 0, 255),
+        )
+
+        assert isinstance(result, ImageArtifact)
+        assert result.width <= 155  # text width + padding
+        assert result.height > 0
+
+    def test_fit_width_exclusive(self):
+        """Test that passing both size and fit_width raises ValueError."""
+        with pytest.raises(ValueError, match="exactly one of size or fit_width"):
+            render_text(
+                text="Hello",
+                font="Geneva",
+                size=24,
+                fit_width=100,
+                color=(255, 0, 0, 255),
+            )
+
+    def test_fit_width_with_blob_font(self):
+        """Test fit_width works with BlobArtifact font."""
+        from pathlib import Path
+
+        font_paths = [
+            "/System/Library/Fonts/Geneva.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+        ]
+
+        font_data = None
+        for path in font_paths:
+            if Path(path).exists():
+                font_data = Path(path).read_bytes()
+                break
+
+        if font_data is None:
+            pytest.skip("No system font found for testing")
+
+        font_blob = BlobArtifact(data=font_data, content_type="font/ttf")
+
+        result = render_text(
+            text="Fit",
+            font=font_blob,
+            fit_width=80,
+            color=(255, 0, 0, 255),
+        )
+
+        assert isinstance(result, ImageArtifact)
+        assert result.width <= 85
+        assert result.height > 0
