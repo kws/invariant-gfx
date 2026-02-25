@@ -137,6 +137,44 @@ Invariant GFX uses Invariant's two-phase execution model:
 - ImageArtifact and BlobArtifact classes
 - Integration with JustMyType/JustMyResource
 
+## **Cache and MemoryStore**
+
+**MemoryStore default:** Invariant's `MemoryStore` defaults to `cache="lru"` (least-recently-used) with `max_size=1000`. For graphics pipelines, **LFU (least-frequently-used)** is often a better fit: shared icons, fonts, and intermediate compositions are reused across many outputs, so evicting by frequency rather than recency improves hit rates.
+
+```python
+from invariant.store.memory import MemoryStore
+from invariant.store.chain import ChainStore
+from invariant.store.disk import DiskStore
+
+# Recommended for graphics: LFU L1 cache
+store = ChainStore(
+    l1=MemoryStore(cache="lfu", max_size=2000),
+    l2=DiskStore(),
+)
+```
+
+**Ephemeral nodes (`cache=False`):** Nodes that render frequently-changing inputs (e.g. current time, live data) and are rarely reused should set `cache=False`. The executor skips cache lookup and never stores the result—the op runs every time. Use for nodes whose outputs change often and would pollute the cache.
+
+```python
+Node(
+    op_name="gfx:render_text",
+    params={"text": "${root.time}", "size": 12, ...},
+    deps=["root"],
+    cache=False,  # Time changes every second; don't cache
+)
+```
+
+## **Graph Serialization**
+
+GFX graphs use Invariant's JSON wire format. See [../invariant/docs/serialization.md](../invariant/docs/serialization.md) for the normative spec.
+
+**When adding new artifacts:**
+
+- All artifacts must implement `ICacheable` (required for artifact storage and manifest hashing).
+- For graph params: literal ICacheable values in params are encoded as `$icacheable` with either `payload_b64` (binary) or `value` (if the type implements `IJsonRepresentable`).
+- **Do not add `IJsonRepresentable`** for binary-heavy types (ImageArtifact, BlobArtifact). The main content (pixels, raw bytes) is never human-readable; `payload_b64` is sufficient. Adding `to_json_value`/`from_json_value` would only expose metadata (e.g. width/height, content_type) while the payload stays base64—the maintenance cost outweighs the marginal benefit.
+- Consider `IJsonRepresentable` only for small, structured param types (e.g. effect config objects) where the JSON would be genuinely readable.
+
 ## **For More Information**
 
 See [docs/architecture.md](./docs/architecture.md) for:
@@ -149,4 +187,7 @@ See [../invariant/AGENTS.md](../invariant/AGENTS.md) for:
 - Core Invariant concepts and constraints
 - ICacheable protocol details
 - Execution model deep dive
+
+See [../invariant/docs/serialization.md](../invariant/docs/serialization.md) for:
+- Graph JSON wire format (Node, SubGraphNode, ref, cel, $icacheable)
 

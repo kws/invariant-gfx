@@ -404,14 +404,17 @@ registry = OpRegistry()
 invariant_gfx.register_core_ops(registry)  # Registers gfx:* ops
 
 # Setup dual-cache: MemoryStore (L1) + DiskStore (L2)
+# For graphics: LFU is often better than default LRU—shared icons/fonts reused across many outputs
 store = ChainStore(
-    l1=MemoryStore(),  # Fast, session-scoped
-    l2=DiskStore(),    # Persistent filesystem cache
+    l1=MemoryStore(cache="lfu", max_size=2000),
+    l2=DiskStore(),
 )
 
 # Create executor
 executor = Executor(registry=registry, store=store)
 ```
+
+**Ephemeral nodes:** For nodes that render frequently-changing inputs (e.g. current time) and are rarely reused, set `cache=False` so the executor skips caching. See [AGENTS.md](../AGENTS.md) §Cache and MemoryStore.
 
 ### **Context Injection**
 
