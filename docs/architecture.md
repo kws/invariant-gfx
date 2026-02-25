@@ -202,6 +202,8 @@ Converts SVG blobs into raster artifacts using cairosvg.
 * **Implementation:** Uses `justmyresource.render.svg_to_png()` internally.  
 * **Security:** SVG rendering is sandboxed (no network access). All dependencies must be bundled.
 
+**Shapes Library:** The `invariant_gfx.shapes` module provides composable SVG shape builders (rect, rounded_rect, circle, ellipse, line, polygon, arc, diamond, parallelogram, hexagon, arrow) that return complete SVG strings for use with `gfx:render_svg`. Shapes support literal dimensions and CEL expression strings (e.g. `${text.width + 24}`) for fit-to-content patterns. See [Shapes Library](#shapes-library) below.
+
 #### **gfx:render\_text**
 
 Creates a tight-fitting "Text Pill" artifact using Pillow.
@@ -227,14 +229,79 @@ Creates a tight-fitting "Text Pill" artifact using Pillow.
 
 #### **gfx:resize**
 
-Scales an `ImageArtifact` to target dimensions.
+Scales an `ImageArtifact` to target dimensions. Provide either (width and/or height) or `scale`. Scale is mutually exclusive with width and height. If only one of width or height is provided, the other is computed proportionally to preserve aspect ratio.
 
 * **Inputs:**  
   * `image`: `ImageArtifact` (accessed via `${upstream_node}` expression).  
-  * `width`: Decimal (target width).  
-  * `height`: Decimal (target height).  
+  * `width`: Decimal | int | str | None (target width; optional if height or scale provided).  
+  * `height`: Decimal | int | str | None (target height; optional if width or scale provided).  
+  * `scale`: Decimal | int | str | None (uniform scale factor; mutually exclusive with width/height).  
 * **Output:** `ImageArtifact` (resized, RGBA mode).  
-* **Use Case:** Scaling downloaded images or intermediate compositions to fit canvas size.
+* **Use Case:** Scaling downloaded images or intermediate compositions. Use width-only or height-only for proportional scaling; use scale for uniform "half size" or "2x".
+
+#### **gfx:rotate**
+
+Rotates an `ImageArtifact` by angle in degrees.
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (the image to rotate).  
+  * `angle`: Decimal | int | str (rotation in degrees; positive = counter-clockwise).  
+  * `expand`: bool (default True). If True, expand canvas so no content is cropped; if False, keep original size (crops corners).  
+* **Output:** `ImageArtifact` (rotated, RGBA mode). Expanded areas are transparent.  
+* **Use Case:** Orienting icons or images (e.g. 90° for portrait/landscape).
+
+#### **gfx:flip**
+
+Flips an `ImageArtifact` horizontally and/or vertically.
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (the image to flip).  
+  * `horizontal`: bool (default False). Flip left-right.  
+  * `vertical`: bool (default False). Flip top-bottom.  
+  * If both False: no-op — returns the same artifact.  
+* **Output:** `ImageArtifact` (flipped or unchanged).  
+* **Use Case:** Mirroring images, correcting orientation.
+
+#### **gfx:thumbnail**
+
+Resizes an image to fit a bounding box with aspect preservation. Output is always exactly (width, height).
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (the image to thumbnail).  
+  * `width`: Decimal | int | str (target bounding box width).  
+  * `height`: Decimal | int | str (target bounding box height).  
+  * `mode`: str (default `"contain"`). `"contain"` = letterbox (fit inside, pad to fill); `"cover"` = crop (scale to fill, crop excess).  
+* **Output:** `ImageArtifact` with exact dimensions (width, height).  
+* **Use Case:** Creating thumbnails, fitting images to fixed-size slots (Stream Deck buttons, avatars).
+
+#### **gfx:crop\_to\_content**
+
+Trims transparent pixels to the tight bounding box of non-transparent content.
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (source image).  
+* **Output:** `ImageArtifact` cropped to content bounds, or 1x1 transparent pixel if fully transparent.  
+* **Use Case:** Tightening text/icon bounds before layout, removing excess padding.
+
+#### **gfx:grayscale**
+
+Converts RGB to grayscale (ITU-R BT.601 luminance formula), preserves alpha.
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (source image).  
+* **Output:** `ImageArtifact` with grayscale RGB and original alpha.  
+* **Use Case:** Disabled/dimmed states, monochrome variants.
+
+#### **gfx:crop\_region**
+
+Extracts a rectangular region by absolute position and size (unlike `gfx:crop` which uses insets).
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (source image).  
+  * `x`, `y`: Decimal | int | str (left, top of region in pixels).  
+  * `width`, `height`: Decimal | int | str (region dimensions).  
+* **Output:** `ImageArtifact` with the extracted region.  
+* **Use Case:** Extracting sub-regions (tiles from sprite sheets, regions of interest).
 
 ### **Group C: Composition (Combiners)**
 
@@ -297,12 +364,78 @@ Parses raw binary data (PNG, JPEG, WEBP) into a decoded `ImageArtifact`.
 * **Purpose:** Allows downloaded raster images (from `fetch_resource` or external sources) to be used in composite (which requires dimensions) or as assets in render\_svg.  
 * **Use Case:** Converting downloaded PNG/JPEG images into compositable artifacts.
 
+### **Group E: Color & Effect Primitives**
+
+See [effects.md](effects.md) for the full filter primitives specification. Key ops:
+
+#### **gfx:brightness\_contrast**
+
+Adjusts brightness and contrast by factor. Pass `Decimal`, `int`, or `str` (not Python `float`).
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (source image).  
+  * `brightness`: Decimal | int | str (factor; 1 = no change, 2 = twice as bright).  
+  * `contrast`: Decimal | int | str (factor; 1 = no change).  
+* **Output:** `ImageArtifact` with adjusted levels.  
+* **Use Case:** Level adjustments, dimming/brightening UI elements.
+
+#### **gfx:tint**
+
+Multiply-blends a color onto the image's RGB. **Unlike colorize:** tint preserves the image's luminance and shading; colorize replaces RGB with a solid color. See [effects.md](effects.md) for the Tint vs Colorize distinction.
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (full RGBA image).  
+  * `color`: tuple\[int, int, int, int\] (RGB of tint, 0-255; alpha ignored).  
+* **Output:** `ImageArtifact` with tinted RGB and original alpha.  
+* **Use Case:** "Make this icon blue" while keeping shading; applying warm/cool tints.
+
 ### **Deferred Ops (Post-V1)**
 
 The following ops are planned but not required for v1:
 
 * **gfx:fetch\_resource**: HTTP download with version-based caching (for external assets).
-* **gfx:render\_shape**: Primitive vector shapes (rect, rounded\_rect, ellipse, line) rendered directly to `ImageArtifact`.
+* **gfx:render\_shape**: Primitive vector shapes (rect, rounded\_rect, ellipse, line) rendered directly to `ImageArtifact`. **Note:** The `invariant_gfx.shapes` module provides SVG shape builders that work with `gfx:render_svg` today.
+
+### **Shapes Library**
+
+The `invariant_gfx.shapes` module provides composable SVG shape builder functions that return complete SVG strings for use with `gfx:render_svg`. Shapes are **pure Python helpers**, not ops—they produce strings that may contain `${...}` CEL expressions. When used in a Node's params with `deps`, the executor evaluates those expressions before `gfx:render_svg` receives the final SVG.
+
+**Available shapes:**
+
+| Shape | Module | Description |
+|:--|:--|:--|
+| rect, rounded_rect | _primitives | Rectangles with optional rounded corners |
+| circle, ellipse | _primitives | Elliptical shapes |
+| line | _primitives | Line segment (stroke only) |
+| polygon | _primitives | Arbitrary polygon from literal points |
+| arc | _primitives | Arc or pie slice (angles in degrees) |
+| diamond, parallelogram, hexagon | _flowchart | Flowchart-style polygon wrappers |
+| arrow | _chart | Line with arrowhead |
+
+**Conventions:**
+
+* **Dimensions:** All dimension parameters accept `int | Decimal | str`. String values are embedded as-is for CEL resolution (e.g. `${text.width + 24}`).
+* **Colors:** `fill` (required) and `stroke` (optional) as RGBA tuples `(r, g, b, a)` 0–255.
+* **viewBox:** All shapes return SVG with `viewBox` matching the shape bounds for 1:1 coordinate mapping.
+* **Determinism:** No random IDs or timestamps; fixed attribute order for reproducible output.
+
+**Usage example:**
+
+```python
+from invariant_gfx.shapes import rounded_rect
+
+# Literal dimensions
+svg = rounded_rect(72, 72, rx=8, fill=(50, 50, 50, 255))
+
+# Fit-to-content (CEL expressions)
+svg = rounded_rect(
+    "${text.width + 24}",
+    "${text.height + 16}",
+    rx=8,
+    fill=(50, 50, 50, 255),
+)
+# Node with deps=["text"]; expressions resolved before render_svg
+```
 
 ## **5\. Missing Upstream Features (Gaps in Invariant)**
 

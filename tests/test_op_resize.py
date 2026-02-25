@@ -53,23 +53,46 @@ class TestResize:
         assert result.width == 30
         assert result.height == 30
 
-    def test_missing_width(self):
-        """Test that missing width raises TypeError."""
-        # This test is no longer applicable since width is a required parameter
-        # The function will fail at call time if width is not provided
-        pass
+    def test_width_only_scales_height_proportionally(self):
+        """Test that width-only computes height proportionally."""
+        source = ImageArtifact(Image.new("RGBA", (10, 20), (255, 0, 0, 255)))
 
-    def test_missing_height(self):
-        """Test that missing height raises TypeError."""
-        # This test is no longer applicable since height is a required parameter
-        # The function will fail at call time if height is not provided
-        pass
+        result = resize(image=source, width=30)
 
-    def test_missing_image(self):
-        """Test that missing image raises TypeError."""
-        # This test is no longer applicable since image is a required parameter
-        # The function will fail at call time if image is not provided
-        pass
+        assert result.width == 30
+        assert result.height == 60  # 20 * 30/10
+
+    def test_height_only_scales_width_proportionally(self):
+        """Test that height-only computes width proportionally."""
+        source = ImageArtifact(Image.new("RGBA", (10, 20), (255, 0, 0, 255)))
+
+        result = resize(image=source, height=40)
+
+        assert result.width == 20  # 10 * 40/20
+        assert result.height == 40
+
+    def test_both_dimensions_none_raises(self):
+        """Test that both width and height None raises ValueError."""
+        source = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255)))
+
+        with pytest.raises(ValueError, match="at least one of"):
+            resize(image=source)
+
+    def test_scale_factor(self):
+        """Test scale factor for uniform scaling."""
+        source = ImageArtifact(Image.new("RGBA", (10, 20), (255, 0, 0, 255)))
+
+        result = resize(image=source, scale=Decimal("2"))
+
+        assert result.width == 20
+        assert result.height == 40
+
+    def test_scale_with_width_raises(self):
+        """Test that scale with width raises ValueError (mutual exclusivity)."""
+        source = ImageArtifact(Image.new("RGBA", (10, 10), (255, 0, 0, 255)))
+
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            resize(image=source, scale=2, width=20)
 
     def test_negative_dimensions(self):
         """Test that negative dimensions raise ValueError."""

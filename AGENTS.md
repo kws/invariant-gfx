@@ -76,9 +76,15 @@ Invariant GFX provides a standard library of graphics operations organized into 
 - `gfx:resolve_font`: Resolves font family names to font file bytes via JustMyType
 
 ### **Group B: Transformers (Rendering)**
-- `gfx:render_svg`: Converts SVG blobs into raster artifacts using cairosvg
+- `gfx:render_svg`: Converts SVG blobs into raster artifacts using cairosvg. Use `invariant_gfx.shapes` (rect, rounded_rect, circle, ellipse, line, polygon, arc, diamond, parallelogram, hexagon, arrow) to build SVG strings for fit-to-content or literal dimensions.
 - `gfx:render_text`: Creates tight-fitting "Text Pill" artifacts (uses JustMyType for font resolution)
-- `gfx:resize`: Scales an ImageArtifact to target dimensions
+- `gfx:resize`: Scales an ImageArtifact (width/height/scale; scale mutually exclusive with width/height)
+- `gfx:rotate`: Rotates an ImageArtifact by angle in degrees
+- `gfx:flip`: Flips an ImageArtifact horizontally and/or vertically
+- `gfx:thumbnail`: Resizes to fit bounding box with aspect preservation (contain/cover modes)
+- `gfx:crop_to_content`: Trims transparent pixels to content bounding box
+- `gfx:grayscale`: Converts to grayscale, preserves alpha
+- `gfx:crop_region`: Crops by (x, y, width, height)
 
 ### **Group C: Composition (Combiners)**
 - `gfx:composite`: Fixed-size composition engine with anchor-based positioning. Uses function-based DSL (`absolute()`, `relative()`) with parent references for layer positioning. Layers specified as dict keyed by dep ID.
@@ -86,6 +92,10 @@ Invariant GFX provides a standard library of graphics operations organized into 
 
 ### **Group D: Type Conversion (Casting)**
 - `gfx:blob_to_image`: Parses raw binary data (PNG, JPEG, WEBP) into ImageArtifact
+
+### **Group E: Color & Effect Primitives**
+- `gfx:brightness_contrast`: Adjusts brightness and contrast by factor
+- `gfx:tint`: Multiply-blends color onto image (preserves luminance; differs from colorize)
 
 See [docs/architecture.md](./docs/architecture.md) for detailed specifications of each op.
 

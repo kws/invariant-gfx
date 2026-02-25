@@ -172,6 +172,27 @@ Multiplies the alpha channel of an image by a factor.
 * **Output:** `ImageArtifact` — RGB preserved, alpha multiplied by `factor`.
 * **Use Case:** Fading shadows, adjusting glow intensity.
 
+#### **gfx:tint**
+
+Multiply-blends a color onto the image's RGB. **Tint vs Colorize:** `colorize` replaces RGB with a solid color (input is typically an alpha-only mask); `tint` blends the color with existing RGB, preserving the image's luminance and shading. Use tint for "make this icon blue" while keeping shading; use colorize for "turn this silhouette into a black shadow."
+
+* **Inputs:**
+  * `image`: `ImageArtifact` (full RGBA image).
+  * `color`: `tuple[int, int, int, int]` (RGB of tint, 0-255; alpha component ignored).
+* **Output:** `ImageArtifact` — RGB multiply-blended with tint, alpha preserved from source.
+* **Use Case:** Colorizing icons while preserving shading; applying warm/cool tints.
+
+#### **gfx:brightness_contrast**
+
+Adjusts brightness and contrast by factor. Pass `Decimal`, `int`, or `str` (not Python `float`).
+
+* **Inputs:**
+  * `image`: `ImageArtifact` (source image).
+  * `brightness`: `Decimal | int | str` (factor; 1 = no change, 2 = twice as bright).
+  * `contrast`: `Decimal | int | str` (factor; 1 = no change).
+* **Output:** `ImageArtifact` — brightness applied first, then contrast.
+* **Use Case:** Level adjustments, dimming/brightening UI elements.
+
 ## **3. Pre-Bundled Subgraphs (Effect Recipes)**
 
 A **pre-bundled subgraph** for effects (an **effect recipe**) is a Python function that returns a **SubGraphNode**. The parent graph sees a single vertex with dependencies and one output artifact; the fact that the subgraph runs internal ops is invisible. For the SubGraphNode model, execution semantics, shared caching, and upstream (Invariant) requirements, see [Subgraphs (Invariant)](https://github.com/kws/invariant/blob/main/docs/subgraphs.md).

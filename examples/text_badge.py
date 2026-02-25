@@ -29,6 +29,7 @@ from invariant.store.memory import MemoryStore
 
 from invariant_gfx import register_core_ops
 from invariant_gfx.anchors import relative
+from invariant_gfx.shapes import rounded_rect
 
 
 def parse_rgba(color_str: str) -> tuple[int, int, int, int]:
@@ -65,9 +66,9 @@ def create_badge_svg_template(
 ) -> str:
     """Generate SVG template for a rounded rectangle badge with dynamic dimensions.
 
-    The SVG template contains ${...} CEL expressions that reference upstream
-    artifact dimensions (e.g., ${text.width + 24}). These expressions are
-    resolved during Phase 1 (Context Resolution) before the SVG is rendered,
+    Uses invariant_gfx.shapes.rounded_rect to produce an SVG template with ${...}
+    CEL expressions that reference upstream artifact dimensions. These expressions
+    are resolved during Phase 1 (Context Resolution) before the SVG is rendered,
     producing a concrete SVG with viewBox and dimensions that perfectly fit
     the content.
 
@@ -94,34 +95,21 @@ def create_badge_svg_template(
             fill_color[3],
         )
 
-    # Convert RGBA to hex (ignoring alpha for fill/stroke, using opacity)
-    fill_hex = f"#{fill_color[0]:02x}{fill_color[1]:02x}{fill_color[2]:02x}"
-    border_hex = f"#{border_color[0]:02x}{border_color[1]:02x}{border_color[2]:02x}"
-    fill_opacity = fill_color[3] / 255.0
-    border_opacity = border_color[3] / 255.0
-
-    # Calculate total dimensions with padding
     padding_x_total = padding_x * 2
     padding_y_total = padding_y * 2
+    width_expr = f"${{text.width + {padding_x_total}}}"
+    height_expr = f"${{text.height + {padding_y_total}}}"
 
-    # SVG template with ${...} expressions that will be resolved in-flight
-    # The expressions reference the "text" dependency's width/height properties
-    svg_template = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${{text.width + {padding_x_total}}} ${{text.height + {padding_y_total}}}">
-  <rect
-    x="{border_width}"
-    y="{border_width}"
-    width="${{text.width + {padding_x_total - 2 * border_width}}}"
-    height="${{text.height + {padding_y_total - 2 * border_width}}}"
-    rx="{corner_radius}"
-    ry="{corner_radius}"
-    fill="{fill_hex}"
-    fill-opacity="{fill_opacity}"
-    stroke="{border_hex}"
-    stroke-opacity="{border_opacity}"
-    stroke-width="{border_width}"
-  />
-</svg>"""
-    return svg_template
+    return rounded_rect(
+        width_expr,
+        height_expr,
+        rx=corner_radius,
+        x=0,
+        y=0,
+        fill=fill_color,
+        stroke=border_color,
+        stroke_width=border_width,
+    )
 
 
 def create_badge_graph(

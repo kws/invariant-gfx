@@ -32,7 +32,13 @@ This document tracks the implementation status of all components specified in [a
 |:--|:--|:--|
 | **gfx:render_svg** | ✅ **Implemented** | cairosvg integration. Converts SVG BlobArtifact to ImageArtifact at target dimensions. Fully tested. |
 | **gfx:render_text** | ✅ **Implemented** | JustMyType + Pillow text rendering. Supports string font names (implicit resolution) and BlobArtifact fonts (direct load). Tight bounding box output. Weight/style support for string fonts. **fit_width** mode: binary search for largest font size that fits within target width (e.g. `${canvas.width}`). Fully tested. |
-| **gfx:resize** | ✅ **Implemented** | Image scaling operation. Pillow resize wrapper with LANCZOS resampling. Supports Decimal/int/string dimensions. Fully tested. |
+| **gfx:resize** | ✅ **Implemented** | Image scaling. Pillow LANCZOS resampling. Optional width/height for proportional scaling; optional scale (mutually exclusive). Fully tested. |
+| **gfx:rotate** | ✅ **Implemented** | Rotate by angle (degrees). expand=True (default) for transparent canvas expansion. Fully tested. |
+| **gfx:flip** | ✅ **Implemented** | Flip horizontal and/or vertical. Both False = no-op. Fully tested. |
+| **gfx:thumbnail** | ✅ **Implemented** | Fit to bounding box with aspect preservation. Modes: contain (letterbox), cover (crop). Fully tested. |
+| **gfx:crop_to_content** | ✅ **Implemented** | Trim transparent pixels to content bounding box. Fully transparent → 1x1. Fully tested. |
+| **gfx:grayscale** | ✅ **Implemented** | Convert to grayscale (ITU-R BT.601), preserve alpha. Fully tested. |
+| **gfx:crop_region** | ✅ **Implemented** | Crop by (x, y, width, height). Accepts Decimal/int/str for CEL. Fully tested. |
 
 ### Group C: Composition (Combiners)
 
@@ -58,7 +64,13 @@ This document tracks the implementation status of all components specified in [a
 | Operation | Status | Notes |
 |:--|:--|:--|
 | **gfx:fetch_resource** | ⏳ **Not Started** | HTTP download with version-based caching |
-| **gfx:render_shape** | ⏳ **Not Started** | Primitive vector shapes (rect, rounded_rect, ellipse, line) |
+| **gfx:render_shape** | ⏳ **Not Started** | Primitive vector shapes (rect, rounded_rect, ellipse, line). **Note:** `invariant_gfx.shapes` provides SVG builders for use with `gfx:render_svg` today. |
+
+## Shapes Library
+
+| Component | Status | Notes |
+|:--|:--|:--|
+| **invariant_gfx.shapes** | ✅ **Implemented** | SVG shape builders (rect, rounded_rect, circle, ellipse, line, polygon, arc, diamond, parallelogram, hexagon, arrow) for use with gfx:render_svg. Supports literal dimensions and CEL expressions. |
 
 ## Registration & Integration
 
@@ -75,7 +87,15 @@ This document tracks the implementation status of all components specified in [a
 | **test_anchors.py** | ✅ **Implemented** | 9 tests: absolute/relative with int/Decimal/string values, alignment string variations |
 | **test_op_create_solid.py** | ✅ **Implemented** | 10 tests: size/color validation, edge cases, error handling |
 | **test_op_composite.py** | ✅ **Implemented** | 10 tests: single/multi-layer composition, alignment parsing, z-order validation, opacity, error cases |
-| **test_op_resize.py** | ✅ **Implemented** | 10 tests: size validation, aspect handling, dimension conversion, error cases |
+| **test_op_resize.py** | ✅ **Implemented** | 12 tests: size validation, proportional scaling, scale factor, mutual exclusivity, error cases |
+| **test_op_rotate.py** | ✅ **Implemented** | 7 tests: 90/180/45 degree rotation, expand True/False, Decimal/string angle, error cases |
+| **test_op_flip.py** | ✅ **Implemented** | 5 tests: horizontal, vertical, both, no-op (both False), error cases |
+| **test_op_thumbnail.py** | ✅ **Implemented** | 7 tests: contain/cover modes, square-to-rect, rect-to-square, error cases |
+| **test_op_crop_to_content.py** | ✅ **Implemented** | 5 tests: padding trim, fully opaque, fully transparent, single pixel, error cases |
+| **test_op_grayscale.py** | ✅ **Implemented** | 3 tests: grayscale conversion, alpha preserved, error cases |
+| **test_op_brightness_contrast.py** | ✅ **Implemented** | 6 tests: identity, brighten, darken, contrast, error cases |
+| **test_op_crop_region.py** | ✅ **Implemented** | 6 tests: basic region, full image, Decimal params, out-of-bounds, error cases |
+| **test_op_tint.py** | ✅ **Implemented** | 6 tests: white tint, red tint, alpha preserved, tint vs colorize, error cases |
 | **test_op_blob_to_image.py** | ✅ **Implemented** | 6 tests: PNG/JPEG parsing, RGBA conversion, error handling |
 | **test_op_layout.py** | ✅ **Implemented** | 18 tests: row/column modes, gap, cross-axis alignment, content sizing, error cases |
 | **test_op_render_text.py** | ✅ **Implemented** | 21 tests: string font, BlobArtifact font, bounding box sizing, weight/style, fit_width mode, mutual exclusivity, error cases |
@@ -85,8 +105,9 @@ This document tracks the implementation status of all components specified in [a
 | **test_e2e_content_flow.py** | ✅ **Implemented** | 3 tests: Use Case 2 E2E test (row/column layout, fan-out pattern). **All passing.** |
 | **test_e2e_template_reuse.py** | ⏳ **Placeholder** | Use Case 3 E2E test (requires context injection). Test structure exists but not executable. |
 | **test_recipe_drop_shadow.py** | ✅ **Implemented** | 4 tests: happy path, context wiring, radius (dilate), zero offset (no translate). |
+| **test_shapes.py** | ✅ **Implemented** | 36 tests: literal output, expression passthrough, color conversion, round-trip via render_svg, edge cases. |
 
-**Total Test Count:** 98 tests, all passing ✅
+**Total Test Count:** 298 tests, all passing ✅
 
 ## Iteration 1 Summary
 

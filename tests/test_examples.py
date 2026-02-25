@@ -131,6 +131,50 @@ class TestColorDashboardExample:
         assert result.returncode == 0
 
 
+class TestShapesShowcaseExample:
+    """Tests for examples/shapes_showcase.py."""
+
+    @pytest.fixture
+    def script_path(self):
+        """Return the path to the shapes showcase example script."""
+        return EXAMPLES_DIR / "shapes_showcase.py"
+
+    def test_default_arguments(self, script_path):
+        """Test example with default arguments."""
+        result = subprocess.run(
+            [sys.executable, str(script_path)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        output = result.stdout
+        assert "✓ Saved to:" in output
+        assert "shapes_showcase" in output
+        assert result.returncode == 0
+
+    def test_custom_cell_size(self, script_path):
+        """Test example with custom cell size."""
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(script_path),
+                "--cell-size",
+                "56",
+                "--output",
+                "output/shapes_test.png",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        output = result.stdout
+        assert "✓ Saved to:" in output
+        assert "56x56" in output
+        assert result.returncode == 0
+
+
 class TestThermometerButtonExample:
     """Tests for examples/thermometer_button.py."""
 
