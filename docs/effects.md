@@ -233,8 +233,8 @@ graph = {
         params={
             "layers": [
                 {"image": ref("background"), "id": "background"},
-                {"image": ref("shadow"), "id": "shadow"},
-                {"image": ref("text"), "id": "text"},
+                {"image": ref("shadow"), "anchor": relative("background", "c@c", x=2, y=2), "id": "shadow"},
+                {"image": ref("text"), "anchor": relative("background", "c@c"), "id": "text"},
             ],
         },
         deps=["background", "shadow", "text"],
@@ -695,13 +695,9 @@ These eight primitives unlock drop shadow, outer stroke, and glow — the most c
 | `gfx:erode` | Edge detection (dilate - erode), inset effects |
 | `gfx:threshold_alpha` | Crisp mask edges from blurred sources |
 | `gfx:crop` | Canvas trimming, sub-region extraction (inverse of pad) |
-
-### **Tier 3: Advanced (Post-V1)**
-
-| Op | Unlocks |
-|:--|:--|
 | `gfx:linear_gradient` | Highlights, gloss, badge fills |
-| `gfx:brightness_contrast` | Level adjustments |
+
+**Note:** `gfx:brightness_contrast` is already implemented (Group E).
 
 ## **9. Relationship to Existing Ops**
 
@@ -716,8 +712,8 @@ The filter primitives complement — not replace — the existing standard libra
 
 ## **10. Related Documents**
 
-* [architecture.md](architecture.md) — Op standard library, artifact types, pipeline examples
+* [architecture.md](architecture.md) — Op standard library, artifact types, template + context pattern
+* [reference_pipelines.md](reference_pipelines.md) — Reference test pipelines (Layered Badge, Content Flow, Template Reuse)
 * [Subgraphs (Invariant)](https://github.com/kws/invariant/blob/main/docs/subgraphs.md) — SubGraphNode model and execution semantics
 * [composite.md](composite.md) — `gfx:composite` specification (blend modes, anchor functions)
 * [layout.md](layout.md) — `gfx:layout` specification
-* [status.md](status.md) — Implementation tracking

@@ -98,8 +98,10 @@ Proportional sizing can also be driven by **context + CEL** when using the templ
 - `examples/text_badge.py` — Dynamic SVG resizing driven by text dimensions.
 - `examples/color_dashboard.py` — Multi-cell dashboard with nested layouts.
 - `examples/text_drop_shadow.py` — Text with drop-shadow recipe (effect subgraph).
+- `examples/effects_showcase.py` — All effect recipes (drop shadow, outer stroke, outer glow, inner shadow, inner glow, reflection) in a grid.
+- `examples/shapes_showcase.py` — Shapes library (rect, circle, etc.) with render_svg.
 
-**Where to go next:** For full op specs, pipeline examples, and the template+context pattern, see [docs/architecture.md](docs/architecture.md). For effects and filter primitives, see [docs/effects.md](docs/effects.md).
+**Where to go next:** See [docs/README.md](docs/README.md) for the documentation index. For op specs and the template+context pattern, see [docs/architecture.md](docs/architecture.md). For reference pipelines, see [docs/reference_pipelines.md](docs/reference_pipelines.md). For effects and filter primitives, see [docs/effects.md](docs/effects.md).
 
 ### Reference
 
@@ -118,7 +120,7 @@ uv run ruff check src/ tests/
 uv run ruff format src/ tests/
 ```
 
-For constraints, terminology, and implementation context, see [AGENTS.md](AGENTS.md). Implementation status and test coverage are documented in [docs/status.md](docs/status.md).
+For constraints, terminology, and implementation context, see [AGENTS.md](AGENTS.md).
 
 For execution model and GFX-specific design, see [docs/architecture.md](docs/architecture.md).
 

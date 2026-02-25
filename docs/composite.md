@@ -4,7 +4,7 @@ Fixed-size composition engine. Stacks multiple layers onto a fixed-size canvas w
 
 ## **Inputs**
 
-* `layers`: `list[dict]` — ordered by z-order (first drawn first, i.e. bottommost)
+* `layers`: `list[dict]` — ordered by z-order (first drawn first, i.e. bottommost). Layers are nested under a single param key so each layer can hold both an artifact reference and config (anchor, id) without manifest key collision. See [architecture.md §5.1](architecture.md#51-manifest-key-collision).
   * Each dict has these fields:
     * `image`: `ImageArtifact` — the layer content. In node params, this is typically provided via `ref("dep_name")`, which resolves to the upstream `ImageArtifact` during **Phase 1 (Context Resolution)**. The op receives the resolved artifact, not the `ref()` marker.
     * `anchor`: `dict` — positioning spec returned by `absolute()` or `relative()` builder functions. **Required for all layers except the first.** **Forbidden on the first layer** — the first layer IS the canvas.
@@ -206,7 +206,7 @@ The operation is implemented in [`src/invariant_gfx/ops/composite.py`](../src/in
 * [`gfx:layout`](layout.md) - Content-sized arrangement engine for sequential flow layouts
 * [`gfx:create_solid`](../architecture.md#gfxcreate_solid) - Generate solid color canvases for backgrounds
 
-## **Note on Documentation Consistency**
+## **Related Documentation**
 
-After this rewrite, [architecture.md](../architecture.md) lines 238-257 still reference the old `dict[str, AnchorSpec]` API keyed by dependency ID. That section should be updated to match the list-based design documented here, but that update is out of scope for this specification document.
+See [architecture.md](architecture.md) for the gfx:composite section in the op standard library overview.
 

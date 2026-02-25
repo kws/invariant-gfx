@@ -73,7 +73,6 @@ Invariant GFX provides a standard library of graphics operations organized into 
 ### **Group A: Sources (Data Ingestion)**
 - `gfx:resolve_resource`: Resolves bundled resources (icons, images) via JustMyResource
 - `gfx:create_solid`: Generates solid color canvas
-- `gfx:resolve_font`: Resolves font family names to font file bytes via JustMyType
 
 ### **Group B: Transformers (Rendering)**
 - `gfx:render_svg`: Converts SVG blobs into raster artifacts using cairosvg. Use `invariant_gfx.shapes` (rect, rounded_rect, circle, ellipse, line, polygon, arc, diamond, parallelogram, hexagon, arrow) to build SVG strings for fit-to-content or literal dimensions.
@@ -89,7 +88,7 @@ Invariant GFX provides a standard library of graphics operations organized into 
 - `gfx:gradient_opacity`: Linear gradient on alpha (angle in degrees, start/end opacity)
 
 ### **Group C: Composition (Combiners)**
-- `gfx:composite`: Fixed-size composition engine with anchor-based positioning. Uses function-based DSL (`absolute()`, `relative()`) with parent references for layer positioning. Layers specified as dict keyed by dep ID.
+- `gfx:composite`: Fixed-size composition engine with anchor-based positioning. Uses function-based DSL (`absolute()`, `relative()`) with parent references for layer positioning. Layers specified as list of dicts with `image`, `anchor`, `id`. See [docs/composite.md](./docs/composite.md).
 - `gfx:layout`: Content-sized arrangement engine (row/column flow)
 
 ### **Group D: Type Conversion (Casting)**
@@ -101,16 +100,9 @@ Invariant GFX provides a standard library of graphics operations organized into 
 
 See [docs/architecture.md](./docs/architecture.md) for detailed specifications of each op.
 
-## **Missing Upstream Features (Gaps in Invariant)**
+## **Upstream (Invariant)**
 
-After reviewing the actual Invariant codebase, the status is:
-
-| Feature | Status | Notes |
-| :---- | :---- | :---- |
-| **Expression Evaluation** | **Implemented upstream** | CEL expressions via `${...}` syntax in `invariant/expressions.py`. Expressions are evaluated during Phase 1 (Context Resolution) when building manifests. |
-| **Context Injection** | **Implemented upstream** | `Executor.execute(graph, context=...)` natively supports external dependencies. Dependencies not in the graph are resolved from the context dict. |
-| **ChainStore** | **Implemented upstream** | `invariant/store/chain.py` provides MemoryStore (L1) + DiskStore (L2) two-tier cache with automatic promotion from L2 to L1 on cache hits. |
-| **List/Dict Cacheable Types** | **Partial** | `hash_value()` hashes lists/dicts recursively, but standalone `List`/`Dict` ICacheable types don't exist. **V1 workaround:** Pass layer specs as plain Python dicts/lists in params (they're only used in manifests, not stored as artifacts). |
+For cacheable types, expression syntax, and execution model, see [Invariant](https://github.com/kws/invariant).
 
 ## **External Dependencies**
 
@@ -139,15 +131,7 @@ Invariant GFX uses Invariant's two-phase execution model:
 
 ## **Implementation Status**
 
-**Designed (Architecture Complete):**
-- Op standard library specification
-- Artifact types (ImageArtifact, BlobArtifact)
-- Composite and layout algorithms
-
-**Not Yet Implemented:**
-- Actual Op implementations
-- ImageArtifact and BlobArtifact classes
-- Integration with JustMyType/JustMyResource
+Core ops, artifacts, effects, and dependency integrations (JustMyType, JustMyResource) are implemented.
 
 ## **Cache and MemoryStore**
 
@@ -189,11 +173,14 @@ GFX graphs use Invariant's JSON wire format. See [../invariant/docs/serializatio
 
 ## **For More Information**
 
+See [docs/README.md](./docs/README.md) for the documentation index.
+
 See [docs/architecture.md](./docs/architecture.md) for:
 - Detailed Op specifications
 - LayerSpec documentation
-- Complete pipeline examples
 - Design philosophy and influences
+
+See [docs/reference_pipelines.md](./docs/reference_pipelines.md) for complete pipeline examples (Layered Badge, Content Flow, Template Reuse).
 
 See [../invariant/AGENTS.md](../invariant/AGENTS.md) for:
 - Core Invariant concepts and constraints
