@@ -1,7 +1,8 @@
-"""Drop-shadow effect recipe: extract alpha, optionally spread, blur, colorize, offset.
+"""Drop-shadow effect recipe: extract alpha, pad, optionally spread, blur, colorize, offset.
 
-The output may extend beyond the source bounds (blur/translate). Padding the source
-canvas (e.g. with gfx:pad) is the caller's responsibility if clipping must be avoided.
+The recipe pads internally so the shadow is not clipped. Output may extend beyond
+the source bounds (blur/translate). The caller only needs a canvas large enough
+for the composite; overlay alignment is handled by gfx:composite anchors.
 """
 
 from decimal import ROUND_CEILING, Decimal

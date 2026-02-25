@@ -262,6 +262,18 @@ Flips an `ImageArtifact` horizontally and/or vertically.
 * **Output:** `ImageArtifact` (flipped or unchanged).  
 * **Use Case:** Mirroring images, correcting orientation.
 
+#### **gfx:transform**
+
+Thin wrapper around PIL `Image.transform`. Supports extent, affine, perspective, and quad methods.
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (source image).  
+  * `method`: str — one of `"extent"`, `"affine"`, `"perspective"`, `"quad"`.  
+  * `data`: tuple | list of coefficients (4 for extent, 6 for affine, 8 for perspective/quad).  
+  * `size`: (width, height) — output dimensions in pixels.  
+* **Output:** `ImageArtifact` with transformed content.  
+* **Use Case:** Quad for perspective effects (e.g. reflection that "meets" source with fixed top edge); extent for cropping; affine for shear/rotate/scale.
+
 #### **gfx:thumbnail**
 
 Resizes an image to fit a bounding box with aspect preservation. Output is always exactly (width, height).
@@ -303,6 +315,18 @@ Extracts a rectangular region by absolute position and size (unlike `gfx:crop` w
 * **Output:** `ImageArtifact` with the extracted region.  
 * **Use Case:** Extracting sub-regions (tiles from sprite sheets, regions of interest).
 
+#### **gfx:gradient\_opacity**
+
+Applies a linear gradient to the image's alpha channel.
+
+* **Inputs:**  
+  * `image`: `ImageArtifact` (source image).  
+  * `angle`: Decimal | int | str (gradient direction in degrees; 0 = left→right, 90 = top→bottom).  
+  * `start`: Decimal | int | str (opacity 0-1 at gradient start). Default 1.  
+  * `end`: Decimal | int | str (opacity 0-1 at gradient end). Default 0.  
+* **Output:** `ImageArtifact` with RGB unchanged and alpha multiplied by the gradient.  
+* **Use Case:** Reflections (fade top to bottom), gloss effects, vignettes.
+
 ### **Group C: Composition (Combiners)**
 
 #### **gfx:composite**
@@ -319,7 +343,7 @@ Fixed-size composition engine. Stacks multiple layers onto a fixed-size canvas w
 
 **Key Features:**
 * Anchor-based positioning: `absolute(x, y)` for fixed coordinates, `relative(parent, align, x, y)` for parent-relative positioning
-* Alignment string format: comma-separated pair (e.g., `"c,c"` for center-center, `"se,se"` for start-end on both axes)
+* Alignment string format: `"self@parent"` with `@` separator (e.g., `"c@c"` for center-center, `"se@es"` for start-end on both axes)
 * Z-ordering determined by parent reference topology (strict chain required)
 * Optional layer properties: `mode` (blend mode) and `opacity` (0.0 to 1.0)
 * CEL expression support: `${...}` expressions in anchor specs are evaluated during context resolution
@@ -697,7 +721,7 @@ template = {
         params={
             "layers": {
                 "background": absolute(0, 0),  # First layer defines canvas
-                "content": relative("background", "c,c"),  # Center on background
+                "content": relative("background", "c@c"),  # Center on background
             },
         },
         deps=["background", "content"],
@@ -809,8 +833,8 @@ graph = {
         params={
             "layers": {
                 "background": absolute(0, 0),  # First layer defines canvas
-                "icon_stand_in": relative("background", "c,c"),  # Center on background
-                "badge": relative("icon_stand_in", "se,se", x=-2, y=2),  # Top-right of icon, with offset
+                "icon_stand_in": relative("background", "c@c"),  # Center on background
+                "badge": relative("icon_stand_in", "se@se", x=-2, y=2),  # Top-right of icon, with offset
             },
         },
         deps=["background", "icon_stand_in", "badge"],
@@ -843,8 +867,8 @@ assert final_image.getpixel((58, 2)) == (200, 0, 0, 255)
 | **Source ops** | `background`, `icon_stand_in`, `badge` | Three independent `gfx:create_solid` nodes |
 | **Composite with anchors** | `final` node | Three-layer composition |
 | **`absolute()` anchoring** | `background` layer | Fixed pixel coordinates |
-| **`relative()` with `"c,c"`** | `icon_stand_in` layer | Center alignment |
-| **`relative()` with `"se,se"`** | `badge` layer | Start-end alignment (top-right) |
+| **`relative()` with `"c@c"`** | `icon_stand_in` layer | Center alignment |
+| **`relative()` with `"se@se"`** | `badge` layer | Start-end alignment (top-right) |
 | **Fan-in (merge)** | `final` node | Three sources converge into one composite |
 | **Pixel-level verification** | Assertions on `getpixel()` | Verifies correct positioning |
 
@@ -1061,8 +1085,8 @@ template = {
         params={
             "layers": {
                 "background": absolute(0, 0),
-                "icon": relative("background", "c,c"),
-                "badge": relative("icon", "se,se", x=-2, y=2),
+                "icon": relative("background", "c@c"),
+                "badge": relative("icon", "se@se", x=-2, y=2),
             },
         },
         deps=["background", "icon", "badge"],

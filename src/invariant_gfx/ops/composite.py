@@ -8,6 +8,10 @@ from PIL import Image
 from invariant.protocol import ICacheable
 from invariant_gfx.artifacts import ImageArtifact
 
+_SUPPORTED_BLEND_MODES = frozenset(
+    {"normal", "multiply", "screen", "overlay", "darken", "lighten", "add"}
+)
+
 
 def composite(layers: list[dict[str, Any]]) -> ICacheable:
     """Composite multiple layers onto a fixed-size canvas.
@@ -100,21 +104,20 @@ def composite(layers: list[dict[str, Any]]) -> ICacheable:
             alpha = alpha.point(lambda p: int(p * opacity))
             layer_image.putalpha(alpha)
 
-        # Composite onto canvas
-        # For now, we only support "normal" blend mode
-        # Other blend modes (multiply, screen, etc.) require more complex logic
-        # and can be added in a future iteration
-        if mode != "normal":
-            # TODO: Implement other blend modes
-            # For now, fall back to normal mode
-            pass
+        # Validate blend mode
+        if mode not in _SUPPORTED_BLEND_MODES:
+            raise ValueError(
+                f"Unknown blend mode '{mode}', must be one of {sorted(_SUPPORTED_BLEND_MODES)}"
+            )
 
-        # Use alpha_composite so low-alpha pixels (e.g. shadows) are preserved.
-        # paste(im, pos, im) would squash alpha (image_alpha^2/255) on transparent canvas.
+        # Composite onto canvas
         if layer_image.mode == "RGBA":
             temp = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 0))
             temp.paste(layer_image, (x, y))
-            canvas = Image.alpha_composite(canvas, temp)
+            if mode == "normal":
+                canvas = Image.alpha_composite(canvas, temp)
+            else:
+                canvas = _blend_layer(canvas, temp, mode)
         else:
             canvas.paste(layer_image, (x, y))
 
@@ -123,6 +126,69 @@ def composite(layers: list[dict[str, Any]]) -> ICacheable:
             placed[layer_id] = (x, y, image.width, image.height)
 
     return ImageArtifact(canvas)
+
+
+def _blend_channel(base: int, blend: int, mode: str) -> int:
+    """Apply blend formula to a single channel (0-255). Returns 0-255."""
+    b = base / 255.0
+    s = blend / 255.0
+    if mode == "multiply":
+        out = b * s
+    elif mode == "screen":
+        out = 1.0 - (1.0 - b) * (1.0 - s)
+    elif mode == "overlay":
+        out = 2.0 * b * s if b < 0.5 else 1.0 - 2.0 * (1.0 - b) * (1.0 - s)
+    elif mode == "darken":
+        out = min(b, s)
+    elif mode == "lighten":
+        out = max(b, s)
+    elif mode == "add":
+        out = min(1.0, b + s)
+    else:
+        out = s  # fallback
+    return max(0, min(255, int(round(out * 255))))
+
+
+def _blend_layer(base: Image.Image, blend: Image.Image, mode: str) -> Image.Image:
+    """Composite blend over base using the given blend mode. Both must be RGBA, same size."""
+    if base.size != blend.size:
+        raise ValueError(
+            f"base and blend must have same size, got {base.size} and {blend.size}"
+        )
+    w, h = base.size
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    base_px = base.load()
+    blend_px = blend.load()
+    out_px = out.load()
+    for py in range(h):
+        for px in range(w):
+            br, bg, bb, ba = base_px[px, py]
+            sr, sg, sb, sa = blend_px[px, py]
+            if sa == 0:
+                out_px[px, py] = (br, bg, bb, ba)
+                continue
+            if sa == 255 and ba == 0:
+                out_px[px, py] = (sr, sg, sb, sa)
+                continue
+            # Blend RGB using mode
+            r = _blend_channel(br, sr, mode)
+            g = _blend_channel(bg, sg, mode)
+            b_val = _blend_channel(bb, sb, mode)
+            # Alpha: over composite
+            sa_n = sa / 255.0
+            ba_n = ba / 255.0
+            a_out = sa_n + ba_n * (1.0 - sa_n)
+            if a_out <= 0:
+                out_px[px, py] = (0, 0, 0, 0)
+                continue
+            # Premultiplied-style mix: result = blend * sa + base * (1-sa) for color
+            # Then un-premultiply by a_out for final alpha
+            r_out = int(round((r * sa_n + br * (1 - sa_n))))
+            g_out = int(round((g * sa_n + bg * (1 - sa_n))))
+            b_out = int(round((b_val * sa_n + bb * (1 - sa_n))))
+            a_out_int = max(0, min(255, int(round(a_out * 255))))
+            out_px[px, py] = (r_out, g_out, b_out, a_out_int)
+    return out
 
 
 def _resolve_position(

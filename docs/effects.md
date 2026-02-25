@@ -123,6 +123,18 @@ Offsets an image by a pixel delta, expanding the canvas to accommodate the shift
 * **Output:** `ImageArtifact` — canvas expanded to fit the translated content. Original pixels shifted by `(dx, dy)`, vacated area is transparent.
 * **Use Case:** Offsetting shadows and glows from their source.
 
+#### **gfx:transform**
+
+Thin wrapper around PIL `Image.transform`. Supports extent, affine, perspective, and quad methods.
+
+* **Inputs:**
+  * `image`: `ImageArtifact` (source image).
+  * `method`: `str` — one of `"extent"`, `"affine"`, `"perspective"`, `"quad"`.
+  * `data`: tuple or list of coefficients (4 for extent, 6 for affine, 8 for perspective/quad).
+  * `size`: `(width, height)` — output dimensions in pixels.
+* **Output:** `ImageArtifact` with transformed content.
+* **Use Case:** Quad for perspective effects (e.g. reflection that "meets" source with fixed top edge); extent for cropping; affine for shear/rotate/scale.
+
 #### **gfx:pad**
 
 Expands the canvas by adding transparent padding around an image.
@@ -171,6 +183,18 @@ Multiplies the alpha channel of an image by a factor.
   * `factor`: `Decimal` (opacity multiplier, 0 to 1).
 * **Output:** `ImageArtifact` — RGB preserved, alpha multiplied by `factor`.
 * **Use Case:** Fading shadows, adjusting glow intensity.
+
+#### **gfx:gradient_opacity**
+
+Applies a linear gradient to the image's alpha channel.
+
+* **Inputs:**
+  * `image`: `ImageArtifact` (source image).
+  * `angle`: `Decimal | int | str` (gradient direction in degrees; 0 = left→right, 90 = top→bottom).
+  * `start`: `Decimal | int | str` (opacity 0-1 at gradient start). Default 1.
+  * `end`: `Decimal | int | str` (opacity 0-1 at gradient end). Default 0.
+* **Output:** `ImageArtifact` — RGB preserved, alpha multiplied by gradient.
+* **Use Case:** Reflections (fade top to bottom), gloss effects, vignettes.
 
 #### **gfx:tint**
 
@@ -222,7 +246,7 @@ graph = {
 
 ### **Drop Shadow**
 
-The canonical shadow effect: extract the source silhouette, optionally spread it, blur, colorize, offset, and composite behind the source. Padding the source canvas (e.g. with `gfx:pad`) so the shadow is not clipped is the **caller's responsibility**; see §6 (Bounding Box Considerations).
+The canonical shadow effect: extract the source silhouette, pad, optionally spread it, blur, colorize, offset, and composite behind the source. The recipe pads internally so the shadow is not clipped; see §6 (Bounding Box Considerations).
 
 **DAG Structure:**
 
@@ -230,11 +254,12 @@ The canonical shadow effect: extract the source silhouette, optionally spread it
 flowchart TD
     src["source (upstream)"]
     alpha["extract_alpha"]
+    pad["pad"]
     dilate["dilate (spread)"]
     blur["gaussian_blur"]
     color["colorize"]
     translate["translate (offset)"]
-    src --> alpha --> dilate --> blur --> color --> translate
+    src --> alpha --> pad --> dilate --> blur --> color --> translate
 ```
 
 **Parameters:**
@@ -414,6 +439,7 @@ Creates a shadow visible only inside the source shape — the "pressed" or "inse
 flowchart TD
     src["source (upstream)"]
     alpha["extract_alpha"]
+    pad["pad"]
     inv["invert_alpha"]
     dilate["dilate"]
     blur["gaussian_blur"]
@@ -421,8 +447,9 @@ flowchart TD
     translate["translate"]
     clip["mask_alpha (clip to source)"]
     src --> alpha
-    alpha --> inv --> dilate --> blur --> color --> translate --> clip
-    alpha --> clip
+    alpha --> pad
+    pad --> inv --> dilate --> blur --> color --> translate --> clip
+    pad --> clip
 ```
 
 **Parameters:**
@@ -437,6 +464,8 @@ flowchart TD
 | `color` | `tuple` | `(0, 0, 0, 160)` | Shadow color (RGBA) |
 
 **Implementation:**
+
+The recipe pads internally before invert so blur and translate do not clip. Pad amount: `ceil(3*sigma) + radius + max(|dx|,|dy|)` with extra for translate output size.
 
 ```python
 def inner_shadow(
@@ -456,10 +485,23 @@ def inner_shadow(
         deps=["source"],
     )
 
+    pad_base = int((Decimal("3") * sigma).to_integral_value(rounding=ROUND_CEILING)) + radius
+    pad_right = pad_base + 2 * abs(dx)
+    pad_bottom = pad_base + 2 * abs(dy)
+    nodes["padded"] = Node(
+        op_name="gfx:pad",
+        params={
+            "image": ref("alpha"),
+            "left": pad_base, "top": pad_base,
+            "right": pad_right, "bottom": pad_bottom,
+        },
+        deps=["alpha"],
+    )
+
     nodes["inverted"] = Node(
         op_name="gfx:invert_alpha",
-        params={"image": ref("alpha")},
-        deps=["alpha"],
+        params={"image": ref("padded")},
+        deps=["padded"],
     )
 
     prev = "inverted"
@@ -496,8 +538,8 @@ def inner_shadow(
 
     nodes["clipped"] = Node(
         op_name="gfx:mask_alpha",
-        params={"image": ref(prev), "mask": ref("alpha")},
-        deps=[prev, "alpha"],
+        params={"image": ref(prev), "mask": ref("padded")},
+        deps=[prev, "padded"],
     )
 
     return SubGraphNode(
@@ -508,7 +550,7 @@ def inner_shadow(
     )
 ```
 
-**Usage:** The inner shadow is composited *above* the source using `"multiply"` or `"overlay"` blend mode. The parent graph assigns the subgraph to a node ID (e.g. `"inner_shadow"`) and references it like any other node:
+**Usage:** The inner shadow is composited *above* the source using `"multiply"` or `"overlay"` blend mode. Use anchor format `"c@c"` (not `"c,c"`):
 
 ```python
 graph["inner_shadow"] = inner_shadow("text", dx=1, dy=2, sigma=Decimal("2"))
@@ -519,12 +561,30 @@ graph["final"] = Node(
         "layers": [
             {"image": ref("background"), "id": "background"},
             {"image": ref("text"), "id": "text"},
-            {"image": ref("inner_shadow"), "id": "inner_shadow", "mode": "multiply"},
+            {"image": ref("inner_shadow"), "anchor": relative("text", "c@c"), "id": "inner_shadow", "mode": "multiply"},
         ],
     },
     deps=["background", "text", "inner_shadow"],
 )
 ```
+
+### **Inner Glow**
+
+Same as inner shadow but no translate (`dx=0`, `dy=0`), bright color. Use `mode="screen"` or `"add"` when compositing for luminosity.
+
+**Parameters:** `source`, `radius: int = 0`, `sigma: Decimal = Decimal("3")`, `color: tuple = (255, 255, 200, 180)`
+
+**DAG:** `extract_alpha → pad → invert_alpha → (optional dilate) → gaussian_blur → colorize → mask_alpha`
+
+### **Reflection**
+
+Produces a faded mirror of the source below it. Flip vertically, optionally squash (vertical compression for perspective), optionally skew (quad transform: top edge fixed to "meet" source, bottom corners shift inward), apply gradient opacity (opaque at top, transparent at bottom), optionally translate when `gap > 0`. Translate uses `dx=0` only — no horizontal offset; the reflection appears centered below the source.
+
+**Parameters:** `source`, `angle: Decimal | int = 90`, `gradient_start: Decimal = Decimal("0.8")`, `gradient_end: Decimal = Decimal("0")`, `gap: int = 0`, `squash: Decimal | int = 1`, `skew: Decimal | int = 0`
+
+**DAG:** `flip(vertical=True) → (optional resize when squash < 1) → (optional gfx:transform quad when skew ≠ 0) → gradient_opacity → (optional translate when gap > 0, with dx=0)`
+
+**Usage:** Composite reflection below the source using anchor `"cs@ce"` (center horizontally, top at parent's bottom) so it appears directly below, not offset to the side.
 
 ## **5. Composing Multiple Effects**
 
@@ -595,30 +655,7 @@ When the executor runs `shadow` or `stroke`, it executes each node's internal gr
 
 ## **6. Bounding Box Considerations**
 
-Effects like blur and dilate expand the visual extent beyond the source's original bounds. Two strategies handle this:
-
-### **Explicit Padding (Recommended)**
-
-Use `gfx:pad` before applying the effect to ensure the canvas is large enough. This makes output dimensions intentional and predictable, which is important for downstream `gfx:composite` and `gfx:layout` operations.
-
-```python
-nodes["padded"] = Node(
-    op_name="gfx:pad",
-    params={
-        "image": ref("source"),
-        "left": pad, "top": pad, "right": pad, "bottom": pad,
-    },
-    deps=["source"],
-)
-```
-
-The pad amount can be calculated from the effect parameters: `ceil(3 * sigma) + radius + max(abs(dx), abs(dy))`.
-
-### **Auto-Expanding Ops**
-
-Alternatively, `gfx:gaussian_blur` and `gfx:dilate` can auto-expand the canvas by the required amount. If this behavior is used, it must be documented as part of the op's contract — the output dimensions must be deterministic for given inputs. The expansion formula becomes part of the manifest.
-
-For badge and button work, explicit padding is preferred because it keeps output size intentional and avoids surprises in layout calculations.
+Effects like blur and dilate expand the visual extent beyond the source's original bounds. **Effect recipes pad internally** — drop_shadow, outer_stroke, outer_glow, inner_shadow, and inner_glow all include a `gfx:pad` step so the effect is not clipped. Reflection outputs a flipped+faded image; the caller provides canvas space for source + gap + reflection. The caller only needs a canvas large enough for the composite; overlay alignment is handled by `gfx:composite` anchors.
 
 ## **7. Determinism Notes**
 
@@ -644,7 +681,9 @@ These eight primitives unlock drop shadow, outer stroke, and glow — the most c
 | `gfx:gaussian_blur` | Soft shadows, glows |
 | `gfx:colorize` | Colored shadows, strokes |
 | `gfx:opacity` | Effect intensity control |
+| `gfx:gradient_opacity` | Reflections, gloss, vignettes |
 | `gfx:translate` | Shadow offset |
+| `gfx:transform` | Reflection perspective (quad), cropping (extent) |
 | `gfx:pad` | Canvas expansion for effects |
 | `gfx:mask_alpha` | Inner shadows, clipped effects |
 

@@ -35,16 +35,18 @@ This document tracks the implementation status of all components specified in [a
 | **gfx:resize** | ✅ **Implemented** | Image scaling. Pillow LANCZOS resampling. Optional width/height for proportional scaling; optional scale (mutually exclusive). Fully tested. |
 | **gfx:rotate** | ✅ **Implemented** | Rotate by angle (degrees). expand=True (default) for transparent canvas expansion. Fully tested. |
 | **gfx:flip** | ✅ **Implemented** | Flip horizontal and/or vertical. Both False = no-op. Fully tested. |
+| **gfx:transform** | ✅ **Implemented** | Wraps PIL Image.transform. Methods: extent, affine, perspective, quad. Fully tested. |
 | **gfx:thumbnail** | ✅ **Implemented** | Fit to bounding box with aspect preservation. Modes: contain (letterbox), cover (crop). Fully tested. |
 | **gfx:crop_to_content** | ✅ **Implemented** | Trim transparent pixels to content bounding box. Fully transparent → 1x1. Fully tested. |
 | **gfx:grayscale** | ✅ **Implemented** | Convert to grayscale (ITU-R BT.601), preserve alpha. Fully tested. |
 | **gfx:crop_region** | ✅ **Implemented** | Crop by (x, y, width, height). Accepts Decimal/int/str for CEL. Fully tested. |
+| **gfx:gradient_opacity** | ✅ **Implemented** | Linear gradient on alpha channel. Angle in degrees, start/end opacity (0-1). Fully tested. |
 
 ### Group C: Composition (Combiners)
 
 | Operation | Status | Notes |
 |:--|:--|:--|
-| **gfx:composite** | ✅ **Implemented** | Fixed-size composition engine. **Features:** absolute/relative positioning, alignment string parsing (`"c,c"`, `"se,se"`, etc.), opacity support (0.0-1.0), z-order from parent topology, error handling for ambiguous z-order. **Limitations:** Only "normal" blend mode fully supported (others fall back to normal). |
+| **gfx:composite** | ✅ **Implemented** | Fixed-size composition engine. **Features:** absolute/relative positioning, alignment string parsing (`"c@c"`, `"se@es"`, etc.), opacity support (0.0-1.0), blend modes (normal, multiply, screen, overlay, darken, lighten, add), z-order from parent topology. |
 | **gfx:layout** | ✅ **Implemented** | Content-sized arrangement engine (row/column flow). Supports direction (row/column), cross-axis alignment (s/c/e), gap spacing, ordered items list. Output sized to tight bounding box. Fully tested. |
 
 ### Group D: Type Conversion (Casting)
@@ -57,7 +59,12 @@ This document tracks the implementation status of all components specified in [a
 
 | Recipe | Status | Notes |
 |:--|:--|:--|
-| **drop_shadow** | ✅ **Implemented** | SubGraphNode: extract_alpha → optional dilate → gaussian_blur → colorize → optional translate. See [effects.md](./effects.md) §4. Padding is caller's responsibility. |
+| **drop_shadow** | ✅ **Implemented** | SubGraphNode: extract_alpha → pad → optional dilate → gaussian_blur → colorize → optional translate. Recipe pads internally. See [effects.md](./effects.md) §4. |
+| **outer_stroke** | ✅ **Implemented** | SubGraphNode: extract_alpha → pad → dilate → colorize. Outlines source silhouette. |
+| **outer_glow** | ✅ **Implemented** | Wraps drop_shadow with dx=dy=0. Use mode="add" when compositing. |
+| **inner_shadow** | ✅ **Implemented** | SubGraphNode: extract_alpha → pad → invert_alpha → blur → colorize → translate → mask_alpha. Use mode="multiply" when compositing. |
+| **inner_glow** | ✅ **Implemented** | Same as inner_shadow without translate. Use mode="screen" or "add" when compositing. |
+| **reflection** | ✅ **Implemented** | SubGraphNode: flip → optional resize(squash) → optional quad transform (perspective) → gradient_opacity → optional translate. Top edge fixed; bottom tilts for "meet" effect. Use anchor "cs@ce" to center below. |
 
 ## Deferred Ops (Post-V1)
 
@@ -95,6 +102,7 @@ This document tracks the implementation status of all components specified in [a
 | **test_op_grayscale.py** | ✅ **Implemented** | 3 tests: grayscale conversion, alpha preserved, error cases |
 | **test_op_brightness_contrast.py** | ✅ **Implemented** | 6 tests: identity, brighten, darken, contrast, error cases |
 | **test_op_crop_region.py** | ✅ **Implemented** | 6 tests: basic region, full image, Decimal params, out-of-bounds, error cases |
+| **test_op_gradient_opacity.py** | ✅ **Implemented** | 10 tests: angle variants, start/end, RGB preserved, error cases |
 | **test_op_tint.py** | ✅ **Implemented** | 6 tests: white tint, red tint, alpha preserved, tint vs colorize, error cases |
 | **test_op_blob_to_image.py** | ✅ **Implemented** | 6 tests: PNG/JPEG parsing, RGBA conversion, error handling |
 | **test_op_layout.py** | ✅ **Implemented** | 18 tests: row/column modes, gap, cross-axis alignment, content sizing, error cases |
@@ -120,7 +128,7 @@ This document tracks the implementation status of all components specified in [a
 - gfx:create_solid operation with Decimal/int/string size handling
 - gfx:composite operation with:
   - Absolute and relative positioning
-  - Alignment string parsing (`"c,c"`, `"se,se"`, `"e,e"`, etc.)
+  - Alignment string parsing (`"c@c"`, `"se@es"`, `"e@e"`, etc.)
   - Opacity support (0.0-1.0)
   - Z-order determination from parent topology
   - Error handling for ambiguous z-order and missing dependencies

@@ -81,10 +81,12 @@ Invariant GFX provides a standard library of graphics operations organized into 
 - `gfx:resize`: Scales an ImageArtifact (width/height/scale; scale mutually exclusive with width/height)
 - `gfx:rotate`: Rotates an ImageArtifact by angle in degrees
 - `gfx:flip`: Flips an ImageArtifact horizontally and/or vertically
+- `gfx:transform`: Wraps PIL Image.transform (extent, affine, perspective, quad). Use quad for reflection perspective.
 - `gfx:thumbnail`: Resizes to fit bounding box with aspect preservation (contain/cover modes)
 - `gfx:crop_to_content`: Trims transparent pixels to content bounding box
 - `gfx:grayscale`: Converts to grayscale, preserves alpha
 - `gfx:crop_region`: Crops by (x, y, width, height)
+- `gfx:gradient_opacity`: Linear gradient on alpha (angle in degrees, start/end opacity)
 
 ### **Group C: Composition (Combiners)**
 - `gfx:composite`: Fixed-size composition engine with anchor-based positioning. Uses function-based DSL (`absolute()`, `relative()`) with parent references for layer positioning. Layers specified as dict keyed by dep ID.

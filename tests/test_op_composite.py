@@ -318,3 +318,90 @@ class TestComposite:
         assert center[1] == 0
         assert center[2] == 0
         assert center[3] == 180
+
+    def test_blend_mode_multiply(self):
+        """Multiply darkens: white * gray = gray, black * anything = black."""
+        bg = ImageArtifact(Image.new("RGBA", (10, 10), (255, 255, 255, 255)))
+        overlay = ImageArtifact(Image.new("RGBA", (10, 10), (128, 128, 128, 255)))
+
+        layers = [
+            {"image": bg, "id": "bg"},
+            {
+                "image": overlay,
+                "anchor": relative("bg", "c@c"),
+                "id": "overlay",
+                "mode": "multiply",
+            },
+        ]
+
+        result = composite(layers)
+        center = result.image.getpixel((5, 5))
+        # 255 * 128 / 255 = 128
+        assert center[0] == 128
+        assert center[1] == 128
+        assert center[2] == 128
+        assert center[3] == 255
+
+    def test_blend_mode_screen(self):
+        """Screen lightens: black stays black, white stays white, mid tones lighten."""
+        bg = ImageArtifact(Image.new("RGBA", (10, 10), (64, 64, 64, 255)))
+        overlay = ImageArtifact(Image.new("RGBA", (10, 10), (64, 64, 64, 255)))
+
+        layers = [
+            {"image": bg, "id": "bg"},
+            {
+                "image": overlay,
+                "anchor": relative("bg", "c@c"),
+                "id": "overlay",
+                "mode": "screen",
+            },
+        ]
+
+        result = composite(layers)
+        center = result.image.getpixel((5, 5))
+        # screen: 1 - (1-64/255)^2 = 1 - (191/255)^2 ~ 0.44 -> ~112
+        assert center[0] >= 100
+        assert center[0] <= 130
+        assert center[1] == center[0]
+        assert center[2] == center[0]
+
+    def test_blend_mode_add(self):
+        """Add brightens: values sum and saturate at 255."""
+        bg = ImageArtifact(Image.new("RGBA", (10, 10), (100, 100, 100, 255)))
+        overlay = ImageArtifact(Image.new("RGBA", (10, 10), (100, 100, 100, 255)))
+
+        layers = [
+            {"image": bg, "id": "bg"},
+            {
+                "image": overlay,
+                "anchor": relative("bg", "c@c"),
+                "id": "overlay",
+                "mode": "add",
+            },
+        ]
+
+        result = composite(layers)
+        center = result.image.getpixel((5, 5))
+        # add: min(1, 100/255 + 100/255) = 200/255 -> ~200
+        assert center[0] >= 195
+        assert center[0] <= 205
+        assert center[1] == center[0]
+        assert center[2] == center[0]
+
+    def test_blend_mode_unknown_raises(self):
+        """Unknown blend mode raises ValueError."""
+        bg = ImageArtifact(Image.new("RGBA", (10, 10), (255, 255, 255, 255)))
+        overlay = ImageArtifact(Image.new("RGBA", (10, 10), (0, 0, 0, 255)))
+
+        layers = [
+            {"image": bg, "id": "bg"},
+            {
+                "image": overlay,
+                "anchor": relative("bg", "c@c"),
+                "id": "overlay",
+                "mode": "invalid_mode",
+            },
+        ]
+
+        with pytest.raises(ValueError, match="Unknown blend mode"):
+            composite(layers)

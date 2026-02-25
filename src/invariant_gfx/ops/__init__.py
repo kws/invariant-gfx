@@ -13,6 +13,7 @@ from invariant_gfx.ops.erode import erode
 from invariant_gfx.ops.extract_alpha import extract_alpha
 from invariant_gfx.ops.flip import flip
 from invariant_gfx.ops.gaussian_blur import gaussian_blur
+from invariant_gfx.ops.gradient_opacity import gradient_opacity
 from invariant_gfx.ops.grayscale import grayscale
 from invariant_gfx.ops.invert_alpha import invert_alpha
 from invariant_gfx.ops.layout import layout
@@ -28,6 +29,7 @@ from invariant_gfx.ops.resolve_resource import resolve_resource
 from invariant_gfx.ops.resize import resize
 from invariant_gfx.ops.rotate import rotate
 from invariant_gfx.ops.thumbnail import thumbnail
+from invariant_gfx.ops.transform import transform
 
 __all__ = [
     "blob_to_image",
@@ -43,6 +45,7 @@ __all__ = [
     "extract_alpha",
     "flip",
     "gaussian_blur",
+    "gradient_opacity",
     "grayscale",
     "invert_alpha",
     "layout",
@@ -58,6 +61,7 @@ __all__ = [
     "resolve_resource",
     "rotate",
     "thumbnail",
+    "transform",
 ]
 
 
@@ -77,12 +81,14 @@ def register_core_ops(registry) -> None:
         ("erode", erode),
         ("flip", flip),
         ("gaussian_blur", gaussian_blur),
+        ("gradient_opacity", gradient_opacity),
         ("resolve_resource", resolve_resource),
         ("render_svg", render_svg),
         ("render_text", render_text),
         ("resize", resize),
         ("rotate", rotate),
         ("thumbnail", thumbnail),
+        ("transform", transform),
         ("brightness_contrast", brightness_contrast),
         ("crop_region", crop_region),
         ("crop_to_content", crop_to_content),
