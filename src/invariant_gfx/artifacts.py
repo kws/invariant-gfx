@@ -39,10 +39,13 @@ class ImageArtifact(ICacheable):
         return self.image.height
 
     def get_stable_hash(self) -> str:
-        """SHA-256 hash of canonical PNG bytes."""
+        """Versioned SHA-256 identity of geometry and RGBA pixels, without PNG encoding."""
         if self._hash_cache is None:
-            png_bytes = self._to_canonical_png()
-            self._hash_cache = hashlib.sha256(png_bytes).hexdigest()
+            digest = hashlib.sha256(b"invariant-gfx:image:rgba:v2\0")
+            digest.update(self.width.to_bytes(8, "big"))
+            digest.update(self.height.to_bytes(8, "big"))
+            digest.update(self.image.tobytes())
+            self._hash_cache = digest.hexdigest()
         return self._hash_cache
 
     def to_stream(self, stream: BinaryIO) -> None:
@@ -93,8 +96,13 @@ class BlobArtifact(ICacheable):
         self.content_type = content_type
 
     def get_stable_hash(self) -> str:
-        """SHA-256 hash of raw bytes."""
-        return hashlib.sha256(self.data).hexdigest()
+        """Versioned identity includes media type as well as bytes."""
+        content_type = self.content_type.encode("utf-8")
+        digest = hashlib.sha256(b"invariant-gfx:blob:v2\0")
+        digest.update(len(content_type).to_bytes(8, "big"))
+        digest.update(content_type)
+        digest.update(self.data)
+        return digest.hexdigest()
 
     def to_stream(self, stream: BinaryIO) -> None:
         """Serialize content type and data with 8-byte length prefixes."""

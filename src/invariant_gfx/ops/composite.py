@@ -3,9 +3,10 @@
 from decimal import Decimal
 from typing import Any
 
+import numpy as np
+from invariant.protocol import ICacheable
 from PIL import Image
 
-from invariant.protocol import ICacheable
 from invariant_gfx.artifacts import ImageArtifact
 
 _SUPPORTED_BLEND_MODES = frozenset(
@@ -86,9 +87,9 @@ def composite(layers: list[dict[str, Any]]) -> ICacheable:
             )
 
         # Convert opacity
-        if isinstance(opacity_val, Decimal):
-            opacity = float(opacity_val)
-        elif isinstance(opacity_val, (int, float, str)):
+        if isinstance(opacity_val, Decimal) or isinstance(
+            opacity_val, (int, float, str)
+        ):
             opacity = float(opacity_val)
         else:
             opacity = 1.0
@@ -155,40 +156,41 @@ def _blend_layer(base: Image.Image, blend: Image.Image, mode: str) -> Image.Imag
         raise ValueError(
             f"base and blend must have same size, got {base.size} and {blend.size}"
         )
-    w, h = base.size
-    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    base_px = base.load()
-    blend_px = blend.load()
-    out_px = out.load()
-    for py in range(h):
-        for px in range(w):
-            br, bg, bb, ba = base_px[px, py]
-            sr, sg, sb, sa = blend_px[px, py]
-            if sa == 0:
-                out_px[px, py] = (br, bg, bb, ba)
-                continue
-            if sa == 255 and ba == 0:
-                out_px[px, py] = (sr, sg, sb, sa)
-                continue
-            # Blend RGB using mode
-            r = _blend_channel(br, sr, mode)
-            g = _blend_channel(bg, sg, mode)
-            b_val = _blend_channel(bb, sb, mode)
-            # Alpha: over composite
-            sa_n = sa / 255.0
-            ba_n = ba / 255.0
-            a_out = sa_n + ba_n * (1.0 - sa_n)
-            if a_out <= 0:
-                out_px[px, py] = (0, 0, 0, 0)
-                continue
-            # Premultiplied-style mix: result = blend * sa + base * (1-sa) for color
-            # Then un-premultiply by a_out for final alpha
-            r_out = int(round((r * sa_n + br * (1 - sa_n))))
-            g_out = int(round((g * sa_n + bg * (1 - sa_n))))
-            b_out = int(round((b_val * sa_n + bb * (1 - sa_n))))
-            a_out_int = max(0, min(255, int(round(a_out * 255))))
-            out_px[px, py] = (r_out, g_out, b_out, a_out_int)
-    return out
+    base_pixels = np.asarray(base)
+    blend_pixels = np.asarray(blend)
+    output = np.empty_like(base_pixels)
+    # Limit temporary float arrays to a strip rather than a full large canvas.
+    # Float64 and rint retain the existing round-to-even channel/alpha formulas.
+    for top in range(0, base.height, 128):
+        bottom = min(top + 128, base.height)
+        bp, sp = base_pixels[top:bottom], blend_pixels[top:bottom]
+        b, s = bp[:, :, :3] / 255.0, sp[:, :, :3] / 255.0
+        if mode == "multiply":
+            mixed = b * s
+        elif mode == "screen":
+            mixed = 1.0 - (1.0 - b) * (1.0 - s)
+        elif mode == "overlay":
+            mixed = np.where(b < 0.5, 2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s))
+        elif mode == "darken":
+            mixed = np.minimum(b, s)
+        elif mode == "lighten":
+            mixed = np.maximum(b, s)
+        elif mode == "add":
+            mixed = np.minimum(1.0, b + s)
+        else:
+            mixed = s
+        rgb = np.clip(np.rint(mixed * 255), 0, 255)
+        sa, ba = sp[:, :, 3:4] / 255.0, bp[:, :, 3:4] / 255.0
+        part = output[top:bottom]
+        part[:, :, :3] = np.rint(rgb * sa + bp[:, :, :3] * (1 - sa)).astype(np.uint8)
+        part[:, :, 3:4] = np.clip(np.rint((sa + ba * (1.0 - sa)) * 255), 0, 255).astype(
+            np.uint8
+        )
+        transparent = sp[:, :, 3] == 0
+        empty_base = (sp[:, :, 3] == 255) & (bp[:, :, 3] == 0)
+        part[transparent] = bp[transparent]
+        part[empty_base] = sp[empty_base]
+    return Image.fromarray(output)
 
 
 def _resolve_position(

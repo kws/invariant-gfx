@@ -124,7 +124,7 @@ All constraints from Invariant apply, plus graphics-specific rules:
 ### **4. Image Format Standardization**
 - All images are normalized to **RGBA** mode (PIL.Image)
 - Serialization uses canonical **PNG** (Level 1 compression, metadata stripped)
-- Artifact identity is SHA-256 of the PNG bytes
+- Artifact identity is versioned SHA-256 of RGBA geometry and raw pixels; PNG encoding is only for persistence
 
 ### **5. Explicit Data Flow (No Global Context)**
 - There is no "Global Context" or "Environment Variables"

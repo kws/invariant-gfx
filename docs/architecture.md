@@ -34,7 +34,7 @@ The universal visual primitive passed between nodes.
 
 * **Content:** A `PIL.Image` (standardized to **RGBA** mode).  
 * **Serialization:** Canonical **PNG** (zlib level 1 compression, metadata stripped).  
-* **Identity:** SHA-256 of the canonical PNG bytes (via `get_stable_hash()`).  
+* **Identity:** Versioned SHA-256 of RGBA geometry and raw pixels (via `get_stable_hash()`), independent of PNG encoding.
 * **Properties:** Exposes `.width`, `.height`, and `.image` (the PIL.Image object).
 
 **ICacheable Implementation:**
@@ -56,11 +56,14 @@ class ImageArtifact(ICacheable):
         return self.image.height
     
     def get_stable_hash(self) -> str:
-        """SHA-256 of canonical PNG bytes."""
+        """Hash v2 RGBA geometry and pixels; see artifacts.py for the exact format."""
         import hashlib
-        png_bytes = self._to_canonical_png()
-        return hashlib.sha256(png_bytes).hexdigest()
-    
+        digest = hashlib.sha256(b"invariant-gfx:image:rgba:v2\0")
+        digest.update(self.width.to_bytes(8, "big"))
+        digest.update(self.height.to_bytes(8, "big"))
+        digest.update(self.image.tobytes())
+        return digest.hexdigest()
+
     def to_stream(self, stream: BinaryIO) -> None:
         """Serialize as canonical PNG."""
         png_bytes = self._to_canonical_png()
@@ -91,7 +94,7 @@ Container for raw binary resources (SVG, PNG, TTF, etc.).
 
 * **Content:** Raw `bytes` + `content_type: str` (MIME type).  
 * **Use Cases:** SVG source files, TTF font binaries, downloaded assets, icon pack resources.  
-* **Identity:** SHA-256 of the raw bytes (via `get_stable_hash()`).
+* **Identity:** Versioned SHA-256 of media type and raw bytes (via `get_stable_hash()`).
 
 **ICacheable Implementation:**
 
@@ -102,10 +105,15 @@ class BlobArtifact(ICacheable):
         self.content_type = content_type
     
     def get_stable_hash(self) -> str:
-        """SHA-256 of raw bytes."""
+        """Hash v2 media type and bytes; see artifacts.py for the exact format."""
         import hashlib
-        return hashlib.sha256(self.data).hexdigest()
-    
+        media = self.content_type.encode("utf-8")
+        digest = hashlib.sha256(b"invariant-gfx:blob:v2\0")
+        digest.update(len(media).to_bytes(8, "big"))
+        digest.update(media)
+        digest.update(self.data)
+        return digest.hexdigest()
+
     def to_stream(self, stream: BinaryIO) -> None:
         """Serialize: [8 bytes: content_type_len][content_type][8 bytes: data_len][data]."""
         content_type_bytes = self.content_type.encode("utf-8")
@@ -763,3 +771,23 @@ See [reference_pipelines.md](reference_pipelines.md) for complete specifications
 * **Template Reuse** — Caching and context injection (`template + context` pattern)
 
 These three pipelines collectively exercise all core graphics operations and DAG patterns, providing a comprehensive test suite that validates correctness, caching behavior, and template reuse.
+
+
+## Rendering performance and identity migration
+
+Image hash v2 uses the literal byte prefix `invariant-gfx:image:rgba:v2\0`,
+unsigned 8-byte big-endian width and height, and row-major RGBA bytes. Blob hash
+v2 uses `invariant-gfx:blob:v2\0`, an unsigned 8-byte big-endian UTF-8 media-type
+length, the media type, and payload bytes. `\0` denotes one NUL byte. These
+namespaces intentionally invalidate identities based on compressed PNG or
+untyped blob bytes. Existing PNG storage remains readable; hashes are recomputed
+on hydration. Consumers persisting graph results should use a fresh cache namespace
+when upgrading, to avoid mixing producer versions. Artifacts remain immutable by
+contract: operations must not mutate input images or payloads after construction.
+
+Non-normal blend modes evaluate the existing float64 channel and alpha formulas
+in NumPy strips of at most 128 rows. This removes Python per-pixel loops while
+preserving byte-for-byte output, rounding, clipped layer placement, and transparent
+pixel handling. The normal alpha-composite path remains in Pillow. Tests compare
+all blend modes against the previous scalar formulas over random colors and alpha
+boundaries. NumPy is a runtime dependency.
