@@ -362,21 +362,21 @@ wheels = [
 
 [[package]]
 name = "invariant-core"
-version = "0.7.0a1"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cachetools" },
     { name = "cel-python" },
     { name = "diskcache" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/85/95/fc281e5dfb70a35afb70823b235b42f7180f20e26a63a28dee2a8e2151f5/invariant_core-0.7.0a1.tar.gz", hash = "sha256:28482d5416e7088c0541b7e29349735324b6566afd441fa93cc9258cb196e07b", size = 319377, upload-time = "2026-05-08T09:24:50.34Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/23/1b/e6c4a0c8f1678929f1ead1e5c12d7c2ddb7cd2b3eae4c2383b384527d5cd/invariant_core-0.7.0.tar.gz", hash = "sha256:94f23d83afde9a0d3dd7e4d7993792fa539b46d2c78818af247bc57ecb816df4", size = 324375, upload-time = "2026-10-25T08:17:20.933Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7a/37/0e6bfc3840c62dfe80ac8633f0fcf948ddf5b87e02abedb4dddc6221cdc0/invariant_core-0.7.0a1-py3-none-any.whl", hash = "sha256:671108d11eea514207df5f4a6ec4ab09fd86a829bb76c9940ec7a17facee523e", size = 53836, upload-time = "2026-05-08T09:24:49.113Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/6c/380ac90edc1a039deb51504c2f7bc729bc46731846887f8cc1d39c6052b6/invariant_core-0.7.0-py3-none-any.whl", hash = "sha256:039abd4da5914aee0a884de452c66e003f5def221fed7f5c320a618e6c59ef80", size = 54641, upload-time = "2026-10-25T08:17:19.494Z" },
 ]
 
 [[package]]
 name = "invariant-gfx"
-version = "0.5.0a1"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "cairosvg" },
@@ -407,7 +407,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cairosvg", specifier = ">=2.8.2,<3.0.0" },
-    { name = "invariant-core", specifier = ">=0.7.0a1" },
+    { name = "invariant-core", specifier = ">=0.7.0" },
     { name = "justmyresource", specifier = ">=1.1.1,<2.0.0" },
     { name = "justmytype", specifier = ">=0.3.0,<1.0.0" },
     { name = "justmytype-western-core", marker = "extra == 'fonts'", specifier = ">=0.1.0" },
